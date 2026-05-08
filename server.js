@@ -29,8 +29,28 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toSt
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // ═══════════════════════════════════════════
-// MIDDLEWARE
+// SECURITY MIDDLEWARE
 // ═══════════════════════════════════════════
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'"],
+      imgSrc: ["'self'", "data:"],
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE']
+}));
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(__dirname));
 
@@ -239,13 +259,13 @@ async function checkCooldown(accountId, toolType) {
   
   if (!cooldown) {
     const account = await FbAccount.findById(accountId);
-    if (account) {
-      await Cooldown.create({ 
-        owner: account.owner,
-        accountId, 
-        [toolType]: now 
-      });
-    }
+    if (!account) return COOLDOWN_MINUTES;
+    
+    await Cooldown.create({ 
+      owner: account.owner,
+      accountId, 
+      [toolType]: now 
+    });
     return false;
   }
   
@@ -297,18 +317,25 @@ async function verifyAccount(account) {
 // ═══════════════════════════════════════════
 const auth = async (req, res, next) => {
   try {
+    // Check session first
     if (req.session.kdxfUserId) {
       const u = await KdxfUser.findById(req.session.kdxfUserId);
-      if (u) { req.kdxfUser = u; return next(); }
+      if (u) { 
+        req.kdxfUser = u; 
+        return next(); 
+      }
     }
     
+    // Check Bearer token
     const h = req.headers.authorization;
     if (h && h.startsWith('Bearer ')) {
-      const d = decrypt(h.split(' ')[1]);
+      const token = h.split(' ')[1];
+      const d = decrypt(token);
       if (d) {
         const [uid] = d.split(':');
         const u = await KdxfUser.findById(uid);
         if (u) {
+          // Restore session
           req.session.kdxfUserId = u._id;
           req.kdxfUser = u;
           return next();
@@ -322,6 +349,7 @@ const auth = async (req, res, next) => {
       code: 'AUTH_REQUIRED' 
     });
   } catch (e) {
+    console.error('Auth middleware error:', e);
     res.status(500).json({ success: false, error: 'Authentication failed' });
   }
 };
@@ -335,6 +363,31 @@ KdxfUser.schema.pre('save', async function(next) {
 });
 
 // ═══════════════════════════════════════════
+// RESUME RUNNING PROCESSES ON SERVER START
+// ═══════════════════════════════════════════
+async function resumeRunningProcesses() {
+  try {
+    const runningProcesses = await Process.find({ status: 'running' });
+    console.log(`[Server] Found ${runningProcesses.length} running processes to resume`);
+    
+    for (const proc of runningProcesses) {
+      // Mark as paused so they don't auto-resume incorrectly
+      proc.status = 'paused';
+      proc.updatedAt = new Date();
+      await proc.save();
+      console.log(`[Server] Paused process ${proc._id} (was running before restart)`);
+    }
+  } catch (e) {
+    console.error('[Server] Error resuming processes:', e);
+  }
+}
+
+// Wait for DB connection before resuming processes
+mongoose.connection.once('open', () => {
+  resumeRunningProcesses();
+});
+
+// ═══════════════════════════════════════════
 // API ROUTES
 // ═══════════════════════════════════════════
 
@@ -345,20 +398,6 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
-});
-
-// Global pool count (no auth required for sync)
-app.get('/api/pool/count', async (req, res) => {
-  try {
-    const count = await FbAccount.countDocuments({
-      isActive: true,
-      inPool: true,
-      consecutiveFails: { $lt: 3 }
-    });
-    res.json({ success: true, count });
-  } catch (e) {
-    res.json({ success: true, count: 0 });
-  }
 });
 
 // ═══════ AUTH ROUTES ═══════
@@ -394,6 +433,14 @@ app.post('/api/auth/register', async (req, res) => {
     
     const token = encrypt(`${user._id}:${uuidv4()}`);
     req.session.kdxfUserId = user._id;
+    
+    // Save session explicitly
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
     
     res.json({
       success: true,
@@ -431,6 +478,14 @@ app.post('/api/auth/login', async (req, res) => {
     const token = encrypt(`${user._id}:${uuidv4()}`);
     req.session.kdxfUserId = user._id;
     
+    // Save session explicitly
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
     res.json({
       success: true,
       userId: user._id,
@@ -444,17 +499,24 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', auth, async (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: 'Logout failed' });
-    }
-    res.clearCookie('kdxfb_sid');
-    res.json({ success: true, message: 'Disconnected successfully' });
-  });
+  try {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Logout session destroy error:', err);
+        return res.status(500).json({ success: false, error: 'Logout failed' });
+      }
+      res.clearCookie('kdxfb_sid');
+      res.json({ success: true, message: 'Disconnected successfully' });
+    });
+  } catch (e) {
+    console.error('Logout error:', e);
+    res.status(500).json({ success: false, error: 'Logout failed' });
+  }
 });
 
 app.get('/api/auth/session', auth, async (req, res) => {
   try {
+    // Load ALL accounts from database for this user
     const accounts = await FbAccount.find({ owner: req.kdxfUser._id });
     
     // Clean dead accounts in background
@@ -465,6 +527,7 @@ app.get('/api/auth/session', auth, async (req, res) => {
       });
     }
     
+    // Return all active accounts
     const activeAccounts = accounts.filter(a => a.isActive && a.consecutiveFails < 3);
     
     res.json({
@@ -487,6 +550,53 @@ app.get('/api/auth/session', auth, async (req, res) => {
   } catch (e) {
     console.error('Session error:', e);
     res.status(500).json({ success: false, error: 'Failed to fetch session' });
+  }
+});
+
+// ═══════ POOL STATS ROUTE ═══════
+
+app.get('/api/pool/stats', auth, async (req, res) => {
+  try {
+    // Get all active in-pool accounts
+    const poolAccounts = await FbAccount.find({
+      isActive: true,
+      inPool: true,
+      consecutiveFails: { $lt: 3 }
+    });
+    
+    const totalPoolAccounts = poolAccounts.length;
+    
+    // Check cooldowns for follow
+    let availableForFollow = 0;
+    let availableForReaction = 0;
+    
+    for (const acc of poolAccounts) {
+      const cooldown = await Cooldown.findOne({ accountId: acc._id });
+      
+      if (!cooldown) {
+        availableForFollow++;
+        availableForReaction++;
+      } else {
+        const now = new Date();
+        const COOLDOWN_MINUTES = 30;
+        
+        const followDiff = (now - (cooldown.lastFollow || new Date(0))) / (1000 * 60);
+        if (followDiff >= COOLDOWN_MINUTES) availableForFollow++;
+        
+        const reactionDiff = (now - (cooldown.lastReaction || new Date(0))) / (1000 * 60);
+        if (reactionDiff >= COOLDOWN_MINUTES) availableForReaction++;
+      }
+    }
+    
+    res.json({
+      success: true,
+      totalPoolAccounts,
+      availableForFollow,
+      availableForReaction
+    });
+  } catch (e) {
+    console.error('Pool stats error:', e);
+    res.status(500).json({ success: false, error: 'Failed to fetch pool stats' });
   }
 });
 
@@ -615,8 +725,8 @@ app.post('/api/accounts/add', auth, async (req, res) => {
   }
 });
 
-// Remove toggle-pool route - all accounts are always in pool
-// Keep delete route
+// REMOVED: Toggle pool endpoint - all accounts are always in pool
+
 app.delete('/api/accounts/:id', auth, async (req, res) => {
   try {
     await FbAccount.findOneAndDelete({ _id: req.params.id, owner: req.kdxfUser._id });
@@ -627,9 +737,33 @@ app.delete('/api/accounts/:id', auth, async (req, res) => {
   }
 });
 
+// ═══════ TOOL ACCESS GATE MIDDLEWARE ═══════
+
+const requireAccounts = async (req, res, next) => {
+  try {
+    const accountCount = await FbAccount.countDocuments({
+      owner: req.kdxfUser._id,
+      isActive: true,
+      consecutiveFails: { $lt: 3 }
+    });
+    
+    if (accountCount === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Add at least one Facebook account to use tools',
+        code: 'NO_ACCOUNTS'
+      });
+    }
+    
+    next();
+  } catch (e) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
 // ═══════ TOOLS ROUTES ═══════
 
-app.post('/api/tools/follow', auth, async (req, res) => {
+app.post('/api/tools/follow', auth, requireAccounts, async (req, res) => {
   try {
     const { link, limit = 10 } = req.body;
     
@@ -637,25 +771,12 @@ app.post('/api/tools/follow', auth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Target URL required' });
     }
     
-    // Check if user has any accounts
-    const userAccountCount = await FbAccount.countDocuments({
-      owner: req.kdxfUser._id,
-      isActive: true
-    });
-    
-    if (userAccountCount === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'You must add at least one account to use this tool' 
-      });
-    }
-    
     const targetId = await extractID(link);
     if (!targetId) {
       return res.status(400).json({ success: false, error: 'Invalid Facebook URL' });
     }
     
-    // Get pool accounts INCLUDING user's own accounts
+    // Get pool accounts INCLUDING own accounts
     const pool = await FbAccount.find({
       isActive: true,
       inPool: true,
@@ -777,7 +898,7 @@ app.post('/api/tools/follow', auth, async (req, res) => {
   }
 });
 
-app.post('/api/tools/reactions', auth, async (req, res) => {
+app.post('/api/tools/reactions', auth, requireAccounts, async (req, res) => {
   try {
     const { link, type = 'LIKE', limit = 10 } = req.body;
     
@@ -785,25 +906,12 @@ app.post('/api/tools/reactions', auth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Post URL required' });
     }
     
-    // Check if user has any accounts
-    const userAccountCount = await FbAccount.countDocuments({
-      owner: req.kdxfUser._id,
-      isActive: true
-    });
-    
-    if (userAccountCount === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'You must add at least one account to use this tool' 
-      });
-    }
-    
     const postId = await extractPostID(link);
     if (!postId) {
       return res.status(400).json({ success: false, error: 'Invalid Facebook post URL' });
     }
     
-    // Get pool accounts INCLUDING user's own accounts
+    // Get pool accounts INCLUDING own accounts
     const pool = await FbAccount.find({
       isActive: true,
       inPool: true,
@@ -917,25 +1025,12 @@ app.post('/api/tools/reactions', auth, async (req, res) => {
   }
 });
 
-app.post('/api/tools/share', auth, async (req, res) => {
+app.post('/api/tools/share', auth, requireAccounts, async (req, res) => {
   try {
     const { link, delay = 5, limit = 10, accountId } = req.body;
     
     if (!link) {
       return res.status(400).json({ success: false, error: 'Post URL required' });
-    }
-    
-    // Check if user has any accounts
-    const userAccountCount = await FbAccount.countDocuments({
-      owner: req.kdxfUser._id,
-      isActive: true
-    });
-    
-    if (userAccountCount === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'You must add at least one account to use this tool' 
-      });
     }
     
     const postId = await extractID(link);
@@ -946,68 +1041,96 @@ app.post('/api/tools/share', auth, async (req, res) => {
     let accounts = [];
     
     if (accountId === 'all') {
-      // Use all user's active accounts
+      // Use ALL user's active accounts
       accounts = await FbAccount.find({
         owner: req.kdxfUser._id,
-        isActive: true
+        isActive: true,
+        consecutiveFails: { $lt: 3 }
       }).select('+accessToken +cookies');
+      
+      if (!accounts.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active accounts found'
+        });
+      }
     } else if (accountId) {
-      // Single specified account
+      // Use specific account
       const account = await FbAccount.findOne({
         _id: accountId,
         owner: req.kdxfUser._id
       }).select('+accessToken +cookies');
-      if (account) accounts = [account];
+      
+      if (!account) {
+        return res.status(400).json({
+          success: false,
+          error: 'Account not found'
+        });
+      }
+      
+      accounts = [account];
     } else {
-      // Auto - pick one random active account
+      // Auto - pick first active account
       const account = await FbAccount.findOne({
         owner: req.kdxfUser._id,
         isActive: true
       }).select('+accessToken +cookies');
-      if (account) accounts = [account];
+      
+      if (!account) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active account found'
+        });
+      }
+      
+      accounts = [account];
     }
     
-    if (!accounts.length) {
+    // Verify all accounts
+    const validAccounts = [];
+    for (const acc of accounts) {
+      const isValid = await verifyAccount(acc);
+      if (isValid) {
+        validAccounts.push(acc);
+      }
+    }
+    
+    if (!validAccounts.length) {
       return res.status(400).json({
         success: false,
-        error: 'No active account found'
+        error: 'No valid accounts available. Tokens may be expired.'
       });
     }
     
     const shareLimit = Math.min(parseInt(limit), 200);
-    const totalShares = shareLimit * accounts.length;
+    const sharesPerAccount = Math.ceil(shareLimit / validAccounts.length);
     
     const proc = new Process({
       owner: req.kdxfUser._id,
       type: 'share',
       target: link,
       targetId: postId,
-      totalCount: totalShares,
+      totalCount: shareLimit,
       status: 'running',
-      accounts: accounts.map(a => a._id)
+      accounts: validAccounts.map(a => a._id)
     });
     await proc.save();
     
     let totalOk = 0;
     
-    // Process each account in parallel with its own delay
-    await Promise.all(accounts.map(async (account) => {
-      // Check cooldown
+    // Process all accounts in parallel
+    await Promise.all(validAccounts.map(async (account) => {
+      let accountOk = 0;
+      let fails = 0;
+      const maxConsecutiveFails = 5;
+      
+      // Check cooldown for this account
       const cooldown = await checkCooldown(account._id, 'lastShare');
       if (cooldown) {
         return; // Skip accounts on cooldown
       }
       
-      // Verify account before sharing
-      const isValid = await verifyAccount(account);
-      if (!isValid) {
-        return;
-      }
-      
-      let ok = 0, fails = 0;
-      const maxConsecutiveFails = 5;
-      
-      for (let i = 0; i < shareLimit; i++) {
+      for (let i = 0; i < sharesPerAccount && (totalOk + shareLimit - totalOk) < shareLimit; i++) {
         try {
           await axios.post(
             `https://graph.facebook.com/me/feed?link=https://m.facebook.com/${postId}&published=0&access_token=${account.accessToken}`,
@@ -1023,24 +1146,16 @@ app.post('/api/tools/share', auth, async (req, res) => {
             }
           );
           
-          ok++;
+          accountOk++;
           totalOk++;
           fails = 0;
           account.actionsDone = (account.actionsDone || 0) + 1;
           account.consecutiveFails = 0;
           await account.save();
           
-          // Update process in real-time
-          proc.successCount = totalOk;
-          proc.updatedAt = new Date();
-          await proc.save();
-          
         } catch (e) {
           fails++;
           account.consecutiveFails = (account.consecutiveFails || 0) + 1;
-          proc.failedCount = (proc.failedCount || 0) + 1;
-          proc.updatedAt = new Date();
-          await proc.save();
           
           if (e.response?.status === 401 || e.response?.status === 403) {
             account.isActive = false;
@@ -1057,14 +1172,14 @@ app.post('/api/tools/share', auth, async (req, res) => {
           await account.save();
         }
         
-        if (i < shareLimit - 1) {
+        if (i < sharesPerAccount - 1) {
           await new Promise(r => setTimeout(r, parseInt(delay) * 1000));
         }
       }
     }));
     
     proc.successCount = totalOk;
-    proc.failedCount = totalShares - totalOk;
+    proc.failedCount = shareLimit - totalOk;
     proc.status = 'completed';
     proc.updatedAt = new Date();
     await proc.save();
@@ -1073,7 +1188,7 @@ app.post('/api/tools/share', auth, async (req, res) => {
       owner: req.kdxfUser._id,
       type: 'share',
       success: totalOk,
-      failed: totalShares - totalOk,
+      failed: shareLimit - totalOk,
       accountId: postId
     });
     
@@ -1081,7 +1196,7 @@ app.post('/api/tools/share', auth, async (req, res) => {
       success: true,
       processId: proc._id,
       count: totalOk,
-      totalAttempted: totalShares
+      totalAttempted: shareLimit
     });
     
   } catch (e) {
