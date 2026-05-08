@@ -1,0 +1,28 @@
+{
+  "name": "kdxfbtool",
+  "short_name": "kdxfb",
+  "description": "kdxfbtool - facebook boosting tool",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06060c",
+  "theme_color": "#06060c",
+  "categories": ["tools"],
+  "lang": "en",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

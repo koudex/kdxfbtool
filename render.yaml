@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: kdxfbtool
+    runtime: node
+    repo: https://github.com/yourusername/kdxfbtool
+    plan: starter
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: STORE_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000

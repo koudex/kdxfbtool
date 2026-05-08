@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>kdxfbtool - boosting tool</title>
+  <meta name="description" content="kdxfbtool - boosting tool for facebook">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#06060c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="kdxfbtool">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="color-scheme" content="dark">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="icons/png" href="/favicon-32x32.png">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════
+       kdxfbtool v2.0
+       ═══════════════════════════════════════════ */
+    
+    :root {
+      --abyss: #06060c;
+      --abyss-light: #0a0a16;
+      --cortex: #0d0d1f;
+      --cortex-hover: #12122a;
+      --neuron: #141430;
+      --neuron-active: #1a1a40;
+      
+      --syn-purple: #8b5cf6;
+      --syn-purple-dim: #3d2578;
+      --syn-purple-glow: 0 0 8px rgba(139,92,246,0.4), 0 0 20px rgba(139,92,246,0.15);
+      
+      --syn-teal: #2dd4bf;
+      --syn-teal-dim: #0d4d44;
+      --syn-teal-glow: 0 0 8px rgba(45,212,191,0.4), 0 0 20px rgba(45,212,191,0.15);
+      
+      --syn-amber: #f59e0b;
+      --syn-amber-glow: 0 0 8px rgba(245,158,11,0.4);
+      
+      --syn-rose: #f43f5e;
+      --syn-rose-glow: 0 0 8px rgba(244,63,94,0.4);
+      
+      --syn-emerald: #10b981;
+      --syn-emerald-glow: 0 0 8px rgba(16,185,129,0.4);
+      
+      --border-subtle: #1e1e3a;
+      --border: #2d2d55;
+      --border-active: #8b5cf6;
+      
+      --text-primary: #c8c8e0;
+      --text-secondary: #6b6b90;
+      --text-muted: #3d3d60;
+      
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-display: 'Space Grotesk', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 13px; scroll-behavior: auto; }
+    
+    body {
+      background: var(--abyss);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Neural background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 30%, rgba(139,92,246,0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 70%, rgba(45,212,191,0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .neural-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+    
+    .neural-node {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: var(--syn-purple);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--syn-purple);
+    }
+    
+    .neural-line {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--syn-purple), transparent);
+      transform-origin: left center;
+      opacity: 0.4;
+      animation: linePulse 4s ease-in-out infinite;
+    }
+    
+    @keyframes linePulse {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--abyss); }
+    ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--syn-purple-dim); }
+
+    /* Selection */
+    ::selection { background: rgba(139,92,246,0.4); color: #fff; }
+
+    /* Focus */
+    *:focus-visible { outline: 1px solid var(--syn-purple); outline-offset: 2px; }
+
+    /* Typography */
+    h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.04em; }
+    h1 { font-size: 1.4rem; } h2 { font-size: 1.15rem; } h3 { font-size: 0.95rem; }
+
+    /* Boot screen */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: var(--abyss);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+    
+    #loadingOverlay.hidden { opacity: 0; pointer-events: none; }
+    
+    .synapse-boot { width: 400px; max-width: 90vw; }
+    
+    .boot-nodes {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .boot-node {
+      width: 8px;
+      height: 8px;
+      background: var(--syn-purple);
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 0 10px var(--syn-purple);
+    }
+    
+    .boot-node::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 50%;
+      animation: nodeRipple 1.5s ease-out infinite;
+    }
+    
+    @keyframes nodeRipple {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(4); opacity: 0; }
+    }
+    
+    .boot-node:nth-child(2)::after { animation-delay: 0.5s; }
+    .boot-node:nth-child(3)::after { animation-delay: 1s; }
+    
+    .boot-connections {
+      display: flex;
+      justify-content: center;
+      gap: 2px;
+      margin-bottom: 16px;
+    }
+    
+    .boot-conn {
+      flex: 1;
+      height: 1px;
+      background: var(--syn-purple-dim);
+      animation: connLight 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes connLight {
+      0%, 100% { background: var(--syn-purple-dim); }
+      50% { background: var(--syn-purple); box-shadow: 0 0 4px var(--syn-purple); }
+    }
+    
+    .boot-text {
+      text-align: center;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      color: var(--syn-purple);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      animation: bootPulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes bootPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    .boot-log {
+      margin-top: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      text-align: center;
+      max-height: 60px;
+      overflow: hidden;
+    }
+    
+    .boot-log-line {
+      padding: 1px 0;
+      animation: logFade 0.1s forwards;
+      opacity: 0;
+    }
+    
+    @keyframes logFade { to { opacity: 1; } }
+
+    /* Main app */
+    #app { position: relative; z-index: 1; display: none; }
+    .app-container { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 215px;
+      min-width: 215px;
+      background: var(--abyss-light);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease;
+    }
+    
+    .sidebar-brand {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .brand-symbol {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: var(--syn-teal);
+      border: 1px solid var(--syn-teal-dim);
+    }
+    
+    .brand-text {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      letter-spacing: 0.1em;
+    }
+    
+    .brand-sub {
+      font-size: 0.5rem;
+      color: var(--text-muted);
+      letter-spacing: 0.15em;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      overflow-y: auto;
+    }
+    
+    .nav-group {
+      padding: 10px 10px 4px;
+      font-family: var(--font-display);
+      font-size: 0.5rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .nav-group::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      text-align: left;
+      width: 100%;
+      transition: all 0.12s ease;
+      position: relative;
+    }
+    
+    .sidebar-link::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 0;
+      background: var(--syn-purple);
+      transition: height 0.15s ease;
+    }
+    
+    .sidebar-link:hover {
+      background: var(--cortex-hover);
+      color: var(--text-primary);
+    }
+    
+    .sidebar-link.active {
+      background: var(--neuron-active);
+      color: var(--syn-purple);
+    }
+    
+    .sidebar-link.active::before { height: 60%; }
+    
+    .sidebar-link .idot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+    
+    .sidebar-link.active .idot {
+      background: var(--syn-purple);
+      box-shadow: 0 0 6px var(--syn-purple);
+    }
+    
+    .sidebar-link .key {
+      font-size: 0.55rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .sidebar-footer { padding: 10px; border-top: 1px solid var(--border-subtle); }
+
+    /* Main content */
+    .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    
+    .main-header {
+      background: var(--abyss-light);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .header-loc {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--syn-teal);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .header-loc-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--syn-teal);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--syn-teal);
+      animation: dotPulse 2s infinite;
+    }
+    
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .header-meta {
+      display: flex;
+      gap: 14px;
+      font-size: 0.62rem;
+      color: var(--text-secondary);
+    }
+    
+    .header-meta span { color: var(--syn-teal); }
+
+    .mobile-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--syn-purple);
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    /* Status bar */
+    .status-bar {
+      background: var(--cortex);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 4px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.58rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    
+    .syn-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .syn-indicator::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+    
+    .syn-indicator.ok::before { background: var(--syn-emerald); box-shadow: 0 0 6px var(--syn-emerald); }
+    .syn-indicator.warn::before { background: var(--syn-amber); box-shadow: 0 0 6px var(--syn-amber); }
+    .syn-indicator.off::before { background: var(--syn-rose); }
+
+    /* Main body */
+    .main-body {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Cortex panel */
+    .cortex-panel {
+      background: var(--cortex);
+      border: 1px solid var(--border-subtle);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cortex-panel::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--syn-purple-dim), transparent);
+      opacity: 0.5;
+    }
+    
+    .cortex-panel-body { padding: 14px 16px; position: relative; z-index: 1; }
+    
+    .cortex-panel-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: var(--font-display);
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--syn-purple);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .cortex-panel.purple { border-color: var(--syn-purple-dim); }
+    .cortex-panel.purple::after { background: linear-gradient(90deg, transparent, var(--syn-purple), transparent); }
+    .cortex-panel.teal { border-color: var(--syn-teal-dim); }
+    .cortex-panel.teal::after { background: linear-gradient(90deg, transparent, var(--syn-teal), transparent); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 16px;
+      background: var(--neuron);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: all 0.1s ease;
+      letter-spacing: 0.04em;
+    }
+    
+    .btn:hover {
+      background: var(--neuron-active);
+      border-color: var(--syn-purple);
+      color: var(--syn-purple);
+    }
+    
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    
+    .btn-primary {
+      background: var(--syn-purple);
+      border-color: var(--syn-purple);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 0 10px rgba(139,92,246,0.2);
+    }
+    
+    .btn-primary:hover {
+      background: #9b6dff;
+      border-color: #9b6dff;
+      color: #fff;
+      box-shadow: 0 0 18px rgba(139,92,246,0.4);
+    }
+    
+    .btn-teal { border-color: var(--syn-teal); color: var(--syn-teal); }
+    .btn-teal:hover { background: rgba(45,212,191,0.1); }
+    .btn-danger { border-color: var(--syn-rose); color: var(--syn-rose); }
+    .btn-danger:hover { background: rgba(244,63,94,0.15); }
+    .btn-sm { padding: 4px 10px; font-size: 0.63rem; }
+    .btn-xs { padding: 2px 7px; font-size: 0.56rem; }
+
+    /* Inputs */
+    .input, select {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--abyss-light);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      transition: border-color 0.15s;
+    }
+    
+    .input:focus, select:focus {
+      outline: none;
+      border-color: var(--syn-purple);
+      box-shadow: 0 0 8px rgba(139,92,246,0.15);
+    }
+    
+    .input::placeholder { color: var(--text-muted); }
+    select { appearance: none; cursor: pointer; }
+    select option { background: var(--cortex); color: var(--text-primary); }
+    
+    label {
+      font-family: var(--font-display);
+      font-size: 0.58rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      font-family: var(--font-mono);
+      font-size: 0.55rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border: 1px solid;
+    }
+    
+    .badge-ok { color: var(--syn-emerald); border-color: rgba(16,185,129,0.4); }
+    .badge-warn { color: var(--syn-amber); border-color: rgba(245,158,11,0.4); }
+    .badge-err { color: var(--syn-rose); border-color: rgba(244,63,94,0.4); }
+    .badge-info { color: var(--syn-purple); border-color: rgba(139,92,246,0.4); }
+    .badge-teal { color: var(--syn-teal); border-color: rgba(45,212,191,0.4); }
+
+    /* Progress bar */
+    .progress {
+      height: 2px;
+      background: var(--border-subtle);
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: var(--syn-purple);
+      transition: width 0.4s ease;
+    }
+    
+    .progress-fill.teal { background: var(--syn-teal); }
+    .progress-fill.amber { background: var(--syn-amber); }
+    .progress-fill.rose { background: var(--syn-rose); }
+
+    /* Spinner */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border-subtle);
+      border-top-color: var(--syn-purple);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: rgba(6,6,12,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.15s ease;
+    }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .modal {
+      background: var(--cortex);
+      border: 1px solid var(--syn-purple);
+      max-width: 440px;
+      width: 100%;
+      animation: modalIn 0.2s ease;
+    }
+    
+    @keyframes modalIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .modal-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-display);
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--syn-purple);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .modal-body { padding: 16px; }
+    .modal-footer { padding: 10px 14px; border-top: 1px solid var(--border-subtle); display: flex; gap: 6px; justify-content: flex-end; }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 600;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-width: 340px;
+    }
+    
+    .toast {
+      background: var(--cortex);
+      border: 1px solid var(--syn-purple);
+      padding: 10px 14px;
+      animation: toastIn 0.25s ease;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.7rem;
+    }
+    
+    @keyframes toastIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .toast.err { border-color: var(--syn-rose); }
+    .toast.warn { border-color: var(--syn-amber); }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+    /* Utilities */
+    .flex { display: flex; } .flex-col { flex-direction: column; } .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; } .gap-1 { gap: 4px; } .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; } .flex-1 { flex: 1; } .flex-wrap { flex-wrap: wrap; }
+    .text-center { text-align: center; } .text-xs { font-size: 0.6rem; } .text-sm { font-size: 0.72rem; }
+    .text-dim { color: var(--text-secondary); } .text-muted { color: var(--text-muted); }
+    .text-purple { color: var(--syn-purple); } .text-teal { color: var(--syn-teal); }
+    .text-amber { color: var(--syn-amber); } .text-rose { color: var(--syn-rose); } .text-emerald { color: var(--syn-emerald); }
+    .font-bold { font-weight: 600; } .font-display { font-family: var(--font-display); }
+    .uppercase { text-transform: uppercase; } .tracking { letter-spacing: 0.06em; }
+    .mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; }
+    .mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; }
+    .w-full { width: 100%; } .hidden { display: none; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 400;
+        transform: translateX(-100%);
+      }
+      
+      .sidebar.open { transform: translateX(0); }
+      
+      .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 399;
+        background: rgba(6,6,12,0.85);
+        display: none;
+      }
+      
+      .sidebar-overlay.show { display: block; }
+      .mobile-toggle { display: block; }
+      .main-body { padding: 8px; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .header-meta { display: none; }
+    }
+  </style>
+</head>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+  
+        // auto update when new version detected
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+  
+          newWorker.addEventListener('statechange', () => {
+            if (
+              newWorker.state === 'installed' &&
+              navigator.serviceWorker.controller
+            ) {
+              newWorker.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+  
+        // reload automatically after update
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+  
+      } catch (err) {
+        console.error('SW registration failed:', err);
+      }
+    });
+  }
+</script>
+<body>
+
+<div class="neural-bg" id="neuralBg"></div>
+
+<div id="loadingOverlay">
+  <div class="synapse-boot">
+    <div class="boot-nodes">
+      <div class="boot-node"></div>
+      <div class="boot-node"></div>
+      <div class="boot-node"></div>
+    </div>
+    <div class="boot-connections">
+      <div class="boot-conn"></div>
+      <div class="boot-conn"></div>
+    </div>
+    <div class="boot-text">initialize</div>
+    <div class="boot-log" id="bootLog"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="app-container">
+    
+    <div class="sidebar-overlay" :class="{show: authenticated && sidebarOpen}" @click="sidebarOpen=false"></div>
+    
+    <!-- SIDEBAR (only when authenticated) -->
+    <aside v-if="authenticated" class="sidebar" :class="{open: sidebarOpen}">
+      <div class="sidebar-brand">
+        <div class="brand-symbol">k</div>
+        <div><div class="brand-text">kdxfbtool</div><div class="brand-sub">fb boosting tool v2.0</div></div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-group">nav</div>
+        <button @click="nav('dashboard')" class="sidebar-link" :class="{active:page==='dashboard'}">
+          <span class="idot"></span> dashboard <span class="key">1</span>
+        </button>
+        <button @click="nav('accounts')" class="sidebar-link" :class="{active:page==='accounts'}">
+          <span class="idot"></span> accounts <span class="key">2</span>
+        </button>
+        <button @click="nav('analytics')" class="sidebar-link" :class="{active:page==='analytics'}">
+          <span class="idot"></span> analytics <span class="key">3</span>
+        </button>
+        <button @click="nav('processes')" class="sidebar-link" :class="{active:page==='processes'}">
+          <span class="idot"></span> processes <span class="key">4</span>
+        </button>
+        <button @click="nav('faq')" class="sidebar-link" :class="{active:page==='faq'}">
+          <span class="idot"></span> help <span class="key">5</span>
+        </button>
+        
+        <div class="nav-group">Tools</div>
+        <button @click="nav('tool-follow')" class="sidebar-link" :class="{active:page==='tool-follow'}">
+          <span class="idot"></span> follower boost <span class="key">F</span>
+        </button>
+        <button @click="nav('tool-reactions')" class="sidebar-link" :class="{active:page==='tool-reactions'}">
+          <span class="idot"></span> reactions boost <span class="key">R</span>
+        </button>
+        <button @click="nav('tool-share')" class="sidebar-link" :class="{active:page==='tool-share'}">
+          <span class="idot"></span> spamshare boost <span class="key">S</span>
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <button @click="showDisconnect=true" class="btn btn-danger btn-sm w-full">Disconnect</button>
+      </div>
+    </aside>
+    
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+      
+      <header v-if="authenticated" class="main-header">
+        <div class="flex items-center gap-2">
+          <button class="mobile-toggle" @click="sidebarOpen=!sidebarOpen">[=]</button>
+          <div class="header-loc">
+            <span class="header-loc-dot"></span>
+            kdx://{{ page.replace(/-/g,'/') }}
+          </div>
+        </div>
+        <div class="header-meta">
+          <span>user:{{ user.username||'---' }}</span>
+          <span>accounts:{{ stats.totalAccounts }}</span>
+          <span>pool:{{ stats.poolAccounts }}</span>
+        </div>
+      </header>
+      
+      <div v-if="authenticated" class="status-bar">
+        <span class="syn-indicator ok">api</span>
+        <span style="color:var(--border)">|</span>
+        <span class="syn-indicator ok">db</span>
+        <span style="color:var(--border)">|</span>
+        <span>uptime:{{ uptime }}</span>
+        <span style="color:var(--border)">|</span>
+        <span>last:{{ lastAction }}s</span>
+        <span style="color:var(--border)">|</span>
+        <span>rate:{{ successRate }}%</span>
+        <span style="color:var(--border)">|</span>
+        <span class="text-muted">[tab][h][esc]</span>
+      </div>
+      
+      <div class="main-body">
+        
+        <!-- ═══════ AUTH ═══════ -->
+        <template v-if="!authenticated">
+          <div style="display:flex;align-items:center;justify-content:center;min-height:80vh">
+            <div style="max-width:460px;width:100%">
+              <div class="cortex-panel purple">
+                <div class="cortex-panel-header">auth</div>
+                <div class="cortex-panel-body">
+                  <div class="flex mb-3 gap-2">
+                    <button @click="authMode='login'" class="btn flex-1" :class="{'btn-primary':authMode==='login'}">Login</button>
+                    <button @click="authMode='register';agreedToS=false;tosExpanded=false" class="btn flex-1" :class="{'btn-primary':authMode==='register'}">Register</button>
+                  </div>
+                  
+                  <form v-if="authMode==='login'" @submit.prevent="handleLogin" class="flex flex-col gap-3">
+                    <div>
+                      <label>username</label>
+                      <input v-model="authForm.username" type="text" required class="input" placeholder="Enter username" minlength="3">
+                    </div>
+                    <div style="position:relative">
+                      <label>password</label>
+                      <input v-model="authForm.password" :type="showPassword ? 'text' : 'password'" required class="input" placeholder="Enter password" minlength="6" style="padding-right:50px">
+                      <button type="button" @click="showPassword=!showPassword" class="btn btn-xs" style="position:absolute;right:8px;top:20px;color:var(--text-muted);border-color:var(--border-subtle)">
+                        {{ showPassword ? 'hide' : 'show' }}
+                      </button>
+                    </div>
+                    <button type="submit" class="btn btn-primary" :disabled="!isLoginValid || loading.session">
+                      <span v-if="loading.session" class="spinner"></span>
+                      <span v-else>login</span>
+                    </button>
+                  </form>
+                  
+                  <form v-if="authMode==='register'" @submit.prevent="handleRegister" class="flex flex-col gap-3">
+                    <div>
+                      <label>username</label>
+                      <input v-model="authForm.username" type="text" required class="input" placeholder="username (3-30 chars)" minlength="3" maxlength="30">
+                    </div>
+                    
+                    <div style="position:relative">
+                      <label>password</label>
+                      <input v-model="authForm.password" :type="showPassword ? 'text' : 'password'" required class="input" placeholder="min 6 characters" minlength="6" style="padding-right:50px">
+                      <button type="button" @click="showPassword=!showPassword" class="btn btn-xs" style="position:absolute;right:8px;top:20px;color:var(--text-muted);border-color:var(--border-subtle)">
+                        {{ showPassword ? 'hide' : 'show' }}
+                      </button>
+                    </div>
+                    
+                    <!-- TOS Section -->
+                    <div style="border:1px solid var(--syn-rose);padding:8px;background:rgba(244,63,94,0.05)">
+                      <div class="flex items-center gap-2">
+                        <span class="text-rose font-bold text-xs">⚠️ RISK DISCLOSURE</span>
+                        <button type="button" @click="tosExpanded=!tosExpanded" class="btn btn-xs" style="color:var(--text-dim)">
+                          {{ tosExpanded ? '[-] Hide' : '[+] Show' }}
+                        </button>
+                      </div>
+                      
+                      <div v-if="tosExpanded" class="text-xs text-dim mt-2" style="max-height:120px;overflow-y:auto;line-height:1.6">
+                        <p class="mb-2"><strong style="color:var(--text-primary)">This tool violates Facebook's Terms of Service.</strong> By using it, you risk permanent account bans, IP blocks, and other enforcement actions from Facebook.</p>
+                        <p class="mb-2"><strong style="color:var(--text-primary)">No warranty or liability.</strong> The developer provides this tool "as-is" with no guarantees. You assume all risks and agree not to hold the developer liable for any damages, losses, or consequences resulting from use.</p>
+                        <p><strong style="color:var(--text-primary)">Illegal use prohibited.</strong> You agree not to use this tool for harassment, fraud, stalking, or any unlawful activities.</p>
+                      </div>
+                      
+                      <label class="flex items-start gap-2 mt-2 text-xs" style="cursor:pointer;color:var(--text-dim);line-height:1.5">
+                        <input type="checkbox" v-model="agreedToS" style="accent-color:var(--syn-purple);margin-top:2px;flex-shrink:0">
+                        <span>I have read and accept the <strong style="color:var(--syn-purple)">Terms of Service</strong> and <strong style="color:var(--syn-rose)">Risk Disclosure</strong>. I understand that by using this tool, I am solely responsible for any consequences to my Facebook accounts.</span>
+                      </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" :disabled="!isRegisterValid || loading.session">
+                      <span v-if="loading.session" class="spinner"></span>
+                      <span v-else>register</span>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+        
+        <!-- ═══════ DASHBOARD ═══════ -->
+        <template v-if="authenticated && page==='dashboard'">
+          <div class="grid-4">
+            <div class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">total accounts</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-purple)">{{ stats.totalAccounts }}</div></div></div>
+            <div class="cortex-panel teal text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">active</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-teal)">{{ stats.activeAccounts }}</div></div></div>
+            <div class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">pool accounts</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-purple)">{{ stats.poolAccounts }}</div></div></div>
+            <div class="cortex-panel text-center" style="border-color:var(--syn-amber);"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">today actions</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-amber)">{{ stats.todayActions }}</div></div></div>
+          </div>
+          <div class="grid-3">
+            <div @click="nav('tool-follow')" class="cortex-panel purple" style="cursor:pointer"><div class="cortex-panel-header">follower boost</div><div class="cortex-panel-body"><div class="text-dim text-sm mb-2">Transmit follows through account pool</div><div class="flex justify-between text-xs text-dim mb-2"><span>Available Accounts</span><span class="text-teal">{{ stats.poolAccounts }}</span></div><div class="progress"><div class="progress-fill" style="width:85%"></div></div></div></div>
+            <div @click="nav('tool-reactions')" class="cortex-panel purple" style="cursor:pointer"><div class="cortex-panel-header">reaction boost</div><div class="cortex-panel-body"><div class="text-dim text-sm mb-2">send reactions to target url</div><div class="flex justify-between text-xs text-dim mb-2"><span>reaction types</span><span class="text-teal">7</span></div><div class="progress"><div class="progress-fill" style="width:72%"></div></div></div></div>
+            <div @click="nav('tool-share')" class="cortex-panel teal" style="cursor:pointer"><div class="cortex-panel-header" style="color:var(--syn-teal)">spamshare boost</div><div class="cortex-panel-body"><div class="text-dim text-sm mb-2">spam shares to a target post</div><div class="flex justify-between text-xs text-dim mb-2"><span>delay config</span><span class="text-teal">1-60s</span></div><div class="progress"><div class="progress-fill teal" style="width:45%"></div></div></div></div>
+          </div>
+        </template>
+        
+        <!-- ═══════ ACCOUNTS ═══════ -->
+        <template v-if="authenticated && page==='accounts'">
+          <div class="flex items-center justify-between mb-2"><h2>accounts</h2><button @click="showAddAccount=true" class="btn btn-primary btn-sm">+ add account</button></div>
+          <div v-if="fbAccounts.length===0" class="cortex-panel text-center" style="padding:40px"><div class="text-dim">no accounts connected</div></div>
+          <div v-for="(acc,i) in fbAccounts" :key="acc.id" class="cortex-panel"><div class="cortex-panel-body"><div class="flex items-center justify-between flex-wrap gap-2"><div class="flex items-center gap-3"><span class="text-muted text-xs">{{ i+1 }}</span><div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.15);border:1px solid var(--syn-purple);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;color:var(--syn-purple);font-size:0.7rem">{{ acc.fbName.charAt(0) }}</div><div><div class="font-bold">{{ acc.fbName }}</div><div class="text-xs text-dim">ID:{{ acc.fbUserId }}</div></div></div><div class="flex items-center gap-2"><span class="badge" :class="acc.isActive?'badge-ok':'badge-err'">{{ acc.isActive?'active':'dead' }}</span><span class="badge" :class="acc.inPool?'badge-info':'badge-dim'">{{ acc.inPool?'pool':'excluded' }}</span><button @click="togglePool(acc)" class="btn btn-xs">{{ acc.inPool?'Remove':'Add' }}</button><button @click="removeAccount(acc.id)" class="btn btn-xs btn-danger">Del</button></div></div></div></div>
+        </template>
+        
+        <!-- ═══════ ANALYTICS ═══════ -->
+        <template v-if="authenticated && page==='analytics'">
+          <h2 class="mb-2">analytics</h2>
+          <div class="flex gap-2 mb-3"><button v-for="p in ['today','week','month']" :key="p" @click="period=p;loadAnalytics()" class="btn btn-sm" :class="{'btn-primary':period===p}">{{ p.toUpperCase() }}</button></div>
+          <div class="grid-3"><div v-for="a in analytics" :key="a._id" class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-2">{{ a._id }}</div><div style="font-size:1.6rem;font-weight:700;color:var(--syn-purple)">{{ (a.totalSuccess||0)+(a.totalFailed||0) }}</div><div class="flex gap-3 text-xs mt-1 justify-center"><span class="text-emerald">OK:{{ a.totalSuccess||0 }}</span><span class="text-rose">ERR:{{ a.totalFailed||0 }}</span></div><div class="progress mt-2"><div class="progress-fill" :style="{width:successPercent(a)+'%'}"></div></div></div></div></div>
+        </template>
+        
+        <!-- ═══════ PROCESSES ═══════ -->
+        <template v-if="authenticated && page==='processes'">
+          <h2 class="mb-2">active proccesses</h2>
+          <div v-if="processes.length===0" class="cortex-panel text-center" style="padding:40px"><div class="text-dim">no active proccesses</div></div>
+          <div v-for="p in processes" :key="p._id" class="cortex-panel" :class="{purple:p.status==='running',teal:p.status==='completed'}" :style="p.status==='paused'?'border-color:var(--syn-amber)':''"><div class="cortex-panel-body"><div class="flex items-center justify-between flex-wrap gap-2 mb-2"><div class="flex items-center gap-2"><span class="badge" :class="statusBadge(p.status)">{{ p.status.toUpperCase() }}</span><span class="font-bold uppercase">{{ p.type }}</span><span class="text-xs text-muted">#{{ p._id.slice(-6) }}</span></div><div class="flex gap-1"><button v-if="p.status==='running'" @click="pauseProc(p._id)" class="btn btn-xs">pause</button><button v-if="p.status==='paused'" @click="resumeProc(p._id)" class="btn btn-xs btn-primary">resume</button><button @click="stopProc(p._id)" class="btn btn-xs btn-danger">stop</button></div></div><div class="progress mb-1"><div class="progress-fill" :class="{'amber':p.status==='paused','rose':p.status==='stopped'}" :style="{width:procPercent(p)+'%'}"></div></div><div class="flex justify-between text-xs text-dim"><span>oK:{{ p.successCount }}/{{ p.totalCount }}</span><span>ERR:{{ p.failedCount }}</span><span>{{ procPercent(p) }}%</span></div></div></div>
+        </template>
+        
+        <!-- ═══════ FAQ ═══════ -->
+        <template v-if="authenticated && page==='faq'">
+          <h2 class="mb-2">help / faq</h2>
+          <div v-for="(f,i) in faqs" :key="i" class="cortex-panel mb-1"><div class="cortex-panel-body"><button @click="f.open=!f.open" class="flex items-center justify-between w-full text-left" style="background:none;border:none;color:inherit;cursor:pointer;font-family:var(--font-mono);font-size:0.8rem;padding:0"><span class="text-purple">{{ f.q }}</span><span class="text-purple">{{ f.open?'[-]':'[+]' }}</span></button><div v-if="f.open" class="mt-3 text-dim text-sm" style="border-top:1px solid var(--border-subtle);padding-top:10px">{{ f.a }}</div></div></div>
+          <div class="cortex-panel purple mt-3"><div class="cortex-panel-header">keybindings</div><div class="cortex-panel-body"><div class="grid-2 text-xs text-dim gap-2"><div>[1-5] Navigate</div><div>[F] Follow</div><div>[R] React</div><div>[S] Share</div><div>[ESC] Back</div><div>[H] Help</div><div>[TAB] Sidebar</div></div></div></div>
+        </template>
+        
+        <!-- ═══════ TOOLS ═══════ -->
+        <template v-if="authenticated && page==='tool-follow'">
+          <button @click="goBack" class="btn btn-sm mb-2">back</button>
+          <div class="cortex-panel purple" style="max-width:560px"><div class="cortex-panel-header">follower boost</div><div class="cortex-panel-body"><form @submit.prevent="submitFollow" class="flex flex-col gap-3"><div><label>Target URL</label><input v-model="followForm.link" type="url" required class="input" placeholder="https://facebook.com/target"></div><div><label>count</label><select v-model="followForm.limit" class="input"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></div><button type="submit" :disabled="loading.follow" class="btn btn-primary"><span v-if="loading.follow" class="spinner"></span><span v-else>start follow</span></button></form></div></div>
+        </template>
+        <template v-if="authenticated && page==='tool-reactions'">
+          <button @click="goBack" class="btn btn-sm mb-2">back</button>
+          <div class="cortex-panel purple" style="max-width:560px"><div class="cortex-panel-header">reaction boost</div><div class="cortex-panel-body"><form @submit.prevent="submitReaction" class="flex flex-col gap-3"><div><label>post url</label><input v-model="reactionForm.link" type="url" required class="input" placeholder="https://facebook.com/post"></div><div><label>reaction type</label><select v-model="reactionForm.type" class="input"><option value="LIKE">like</option><option value="LOVE">love</option><option value="CARE">care</option><option value="HAHA">haha</option><option value="WOW">wow</option><option value="SAD">sad</option><option value="ANGRY">angry</option></select></div><div><label>reaction count</label><select v-model="reactionForm.limit" class="input"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></div><button type="submit" :disabled="loading.reaction" class="btn btn-primary"><span v-if="loading.reaction" class="spinner"></span><span v-else>start react</span></button></form></div></div>
+        </template>
+        <template v-if="authenticated && page==='tool-share'">
+          <button @click="goBack" class="btn btn-sm mb-2">back</button>
+          <div class="cortex-panel teal" style="max-width:560px"><div class="cortex-panel-header" style="color:var(--syn-teal)">spamshare boost</div><div class="cortex-panel-body"><form @submit.prevent="submitShare" class="flex flex-col gap-3"><div><label>post url</label><input v-model="shareForm.link" type="url" required class="input" placeholder="https://facebook.com/post"></div><div><label>account</label><select v-model="shareForm.accountId" class="input"><option value="">Auto</option><option v-for="a in fbAccounts" :key="a.id" :value="a.id">{{ a.fbName }}</option></select></div><div class="grid-2"><div><label>delay (sec)</label><input v-model="shareForm.delay" type="number" min="1" class="input" value="5"></div><div><label>count</label><input v-model="shareForm.limit" type="number" min="1" max="200" class="input" value="10"></div></div><button type="submit" :disabled="loading.share" class="btn btn-teal"><span v-if="loading.share" class="spinner"></span><span v-else>start share</span></button></form></div></div>
+        </template>
+        
+        <!-- ═══════ COOLDOWN ═══════ -->
+        <template v-if="authenticated && page==='cooldown'">
+          <div class="cortex-panel text-center" style="max-width:400px;margin:50px auto;padding:28px;border-color:var(--syn-amber)"><div style="font-size:2.5rem;color:var(--syn-amber)">!</div><div class="font-bold text-amber mt-2" style="font-size:1rem">cooldown active</div><div class="text-dim text-sm mt-2">{{ cooldownMsg }}</div><div class="progress mt-3"><div class="progress-fill amber" style="width:100%"></div></div><button @click="nav('dashboard')" class="btn btn-primary mt-4">Return</button></div>
+        </template>
+        
+      </div>
+      
+      <div v-if="authenticated" class="status-bar"><span>[tab]</span><span style="color:var(--border)">|</span><span>[1-5]</span><span style="color:var(--border)">|</span><span>[f/r/s]</span><span style="color:var(--border)">|</span><span>[esc]</span><span style="color:var(--border)">|</span><span class="text-purple">kdxfbtool v2.0</span></div>
+    </div>
+  </div>
+  
+  <!-- ═══════ ADD ACCOUNT MODAL ═══════ -->
+  <div v-if="showAddAccount" class="modal-overlay" @click.self="showAddAccount=false">
+    <div class="modal"><div class="modal-header">add account <button @click="showAddAccount=false" style="background:none;border:none;color:var(--syn-purple);cursor:pointer;font-size:1rem">[X]</button></div><div class="modal-body"><form @submit.prevent="addFbAccount" class="flex flex-col gap-3"><div><label>email/phone/uid/username</label><input v-model="newAcc.email" type="text" required class="input" placeholder="neuron@facebook.com"></div><div><label>password</label><input v-model="newAcc.password" type="password" required class="input" placeholder="********"></div><div class="text-xs text-dim">this account joins the exchange pool.</div><button type="submit" :disabled="loading.addAccount" class="btn btn-primary"><span v-if="loading.addAccount" class="spinner"></span><span v-else>add account</span></button></form></div></div>
+  </div>
+  
+  <!-- ═══════ DISCONNECT MODAL ═══════ -->
+  <div v-if="showDisconnect" class="modal-overlay" @click.self="showDisconnect=false">
+    <div class="modal"><div class="modal-header">disconnect <button @click="showDisconnect=false" style="background:none;border:none;color:var(--syn-purple);cursor:pointer;font-size:1rem">[X]</button></div><div class="modal-body"><div class="text-dim text-sm mb-3">Facebook sessions remain active. This only disconnects the app interface.</div><div class="flex gap-2"><button @click="logout" class="btn btn-danger flex-1">Disconnect</button><button @click="showDisconnect=false" class="btn flex-1">Cancel</button></div></div></div>
+  </div>
+  
+  <!-- ═══════ TOASTS ═══════ -->
+  <div class="toast-container"><div v-for="(t,i) in toasts" :key="i" class="toast" :class="t.type"><span :style="{color:t.type==='err'?'var(--syn-rose)':t.type==='warn'?'var(--syn-amber)':'var(--syn-emerald)'}">[{{ t.type==='err'?'X':t.type==='warn'?'!':'OK' }}]</span><span>{{ t.msg }}</span></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.14/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+
+createApp({
+  setup() {
+    const page = ref('auth');
+    const sidebarOpen = ref(false);
+    const showAddAccount = ref(false);
+    const showDisconnect = ref(false);
+    const period = ref('today');
+    const authMode = ref('login');
+    const showPassword = ref(false);
+    const agreedToS = ref(false);
+    const tosExpanded = ref(false);
+    const history = ref([]);
+    
+    const user = ref({ id: '', username: '...', role: '' });
+    const fbAccounts = ref([]);
+    const processes = ref([]);
+    const analytics = ref([]);
+    const stats = ref({ totalAccounts: 0, activeAccounts: 0, poolAccounts: 0, todayActions: 0 });
+    
+    const authForm = ref({ username: '', password: '' });
+    const followForm = ref({ link: '', limit: '10' });
+    const reactionForm = ref({ link: '', type: 'WOW', limit: '10' });
+    const shareForm = ref({ link: '', delay: '5', limit: '10', accountId: '' });
+    const newAcc = ref({ email: '', password: '' });
+    
+    const loading = reactive({
+      follow: false,
+      reaction: false,
+      share: false,
+      addAccount: false,
+      session: true
+    });
+    
+    const cooldownMsg = ref('');
+    const toasts = ref([]);
+    const uptime = ref('0s');
+    const lastAction = ref(0);
+    const successRate = ref(100);
+    
+    const isLoginValid = computed(() => {
+      return authForm.value.username.trim().length >= 3 && 
+             authForm.value.password.trim().length >= 6;
+    });
+    
+    const isRegisterValid = computed(() => {
+      return authForm.value.username.trim().length >= 3 && 
+             authForm.value.username.trim().length <= 30 &&
+             authForm.value.password.trim().length >= 6 &&
+             agreedToS.value;
+    });
+
+    const authenticated = computed(() => user.value.id && user.value.id !== '');
+    
+    const faqs = ref([
+      { 
+        q: 'How does this tool actually work?', 
+        a: 'The tool connects Facebook accounts to a shared exchange pool. When you request followers, reactions, or shares, the system distributes the task across other active accounts in the pool. In return, your accounts help others when they make requests. This mutual exchange system makes actions appear more natural than using bots or fake accounts.',
+        open: false 
+      },
+      { 
+        q: 'Is this tool safe to use?', 
+        a: 'No automation tool is 100% safe. This tool violates Facebook\'s Terms of Service. While we implement delays, cooldowns (30 minutes per account), and use real accounts instead of bots, Facebook can still detect automated behavior patterns. Some accounts may get restricted, temporarily blocked, or permanently banned. Use at your own risk with accounts you can afford to lose.',
+        open: false 
+      },
+      { 
+        q: 'How are my Facebook credentials protected?', 
+        a: 'Passwords are hashed using bcrypt (12 rounds) and never stored in plain text. Session tokens and cookies are encrypted using AES-256-CBC before storage. However, no system is completely immune to breaches. We recommend using accounts you are willing to risk and enabling 2FA where possible.',
+        open: false 
+      },
+      { 
+        q: 'What is the cooldown system?', 
+        a: 'Each Facebook account has a 30-minute cooldown between actions. This prevents rapid-fire requests that would trigger Facebook\'s spam detection. If all pool accounts are on cooldown, you will need to wait. This is intentional - it protects both your accounts and the accounts of others in the pool.',
+        open: false 
+      },
+      { 
+        q: 'What happens to dead or banned accounts?', 
+        a: 'The system automatically detects accounts with expired tokens, invalid sessions, or consecutive failures. After 3 failed attempts, an account is marked as inactive and removed from the pool. These accounts are cleaned from the database to keep the pool healthy and accurate.',
+        open: false 
+      },
+      { 
+        q: 'Can I use this for business or client accounts?', 
+        a: 'We strongly advise against using this tool on business accounts, client accounts, or any account you cannot afford to lose. The risk of detection and permanent bans is real. Only use personal accounts that you own and are willing to sacrifice if detected by Facebook.',
+        open: false 
+      },
+      { 
+        q: 'Why do I need to add accounts to the pool?', 
+        a: 'The pool is the core of the system. When you add accounts, they help other users with their requests. In exchange, other users\' accounts help you. Without the pool, there would be no accounts available to fulfill requests. You can toggle individual accounts in/out of the pool at any time.',
+        open: false 
+      },
+      { 
+        q: 'Will people know I\'m using this tool?', 
+        a: 'Actions are performed through real Facebook accounts with real profiles, not fake or empty accounts. Follows, reactions, and shares appear as normal user activity. However, behavior patterns (timing, frequency) could be analyzed by Facebook\'s AI systems. There is no visible indicator that a specific action came from this tool.',
+        open: false 
+      },
+      { 
+        q: 'What are the limits on usage?', 
+        a: 'Follows and reactions are limited by available accounts in the pool (5-20 per request). Shares can go up to 200 per session from your own account. Each account has a 30-minute cooldown. There is also a general rate limit of 200 API requests per 15 minutes to prevent abuse.',
+        open: false 
+      },
+      { 
+        q: 'Can I recover a banned account?', 
+        a: 'No. This tool cannot help recover Facebook accounts that have been banned, restricted, or disabled. Facebook\'s enforcement actions are final in most cases. The developer bears no responsibility for account losses and cannot assist with Facebook support or appeals.',
+        open: false 
+      },
+      { 
+        q: 'How is my data handled when I disconnect?', 
+        a: 'Disconnecting (logout) from this app only removes your session from the interface. Your registered account remains in the database, and your Facebook sessions remain active. To fully remove your data, you must delete all connected Facebook accounts before disconnecting. We do not share or sell your data.',
+        open: false 
+      },
+      { 
+        q: 'Is this tool detectable by Facebook?', 
+        a: 'Yes, potentially. Facebook uses machine learning to detect automation patterns including: abnormal activity spikes, consistent timing between actions, actions from geographically diverse accounts, and device fingerprinting. This tool implements countermeasures (random delays, real accounts, cooldowns) but cannot guarantee undetectability.',
+        open: false 
+      }
+    ]);
+    
+    const api = axios.create({ baseURL: '/api' });
+    
+    api.interceptors.request.use(c => {
+      const t = localStorage.getItem('kdxfb_token');
+      if (t) c.headers.Authorization = `Bearer ${t}`;
+      return c;
+    });
+    
+    function toast(m, t = 'ok') {
+      const id = Date.now() + Math.random();
+      toasts.value.push({ id, msg: m, type: t });
+      setTimeout(() => {
+        toasts.value = toasts.value.filter(x => x.id !== id);
+      }, 3500);
+    }
+    
+    function nav(t) {
+      if (!authenticated.value && t !== 'auth') return;
+      if (page.value !== t) {
+        history.value.push(page.value);
+        page.value = t;
+        sidebarOpen.value = false;
+      }
+      if (t === 'analytics') loadAnalytics();
+      if (t === 'processes') loadProcesses();
+    }
+    
+    function goBack() {
+      page.value = history.value.length > 0 ? history.value.pop() : 'dashboard';
+    }
+    
+    function statusBadge(s) {
+      return {
+        running: 'badge-ok',
+        paused: 'badge-warn',
+        stopped: 'badge-err',
+        completed: 'badge-teal'
+      }[s] || 'badge-dim';
+    }
+    
+    function procPercent(p) {
+      return p.totalCount ? Math.round(((p.successCount + p.failedCount) / p.totalCount) * 100) : 0;
+    }
+    
+    function successPercent(a) {
+      const t = (a.totalSuccess || 0) + (a.totalFailed || 0);
+      return t ? Math.round((a.totalSuccess / t) * 100) : 100;
+    }
+    
+    async function loadSession() {
+      try {
+        const r = await api.get('/auth/session');
+        if (r.data.success) {
+          user.value = r.data.user;
+          fbAccounts.value = r.data.fbAccounts || [];
+          calcStats();
+          if (page.value === 'loading' || page.value === 'auth') {
+            page.value = 'dashboard';
+            history.value = [];
+          }
+          return true;
+        }
+        return false;
+      } catch (e) {
+        if (e.response?.status === 401) {
+          localStorage.removeItem('kdxfb_token');
+          user.value = { id: '', username: '...', role: '' };
+          page.value = 'auth';
+        }
+        return false;
+      } finally {
+        loading.session = false;
+      }
+    }
+    
+    function calcStats() {
+      stats.value.totalAccounts = fbAccounts.value.length;
+      stats.value.activeAccounts = fbAccounts.value.filter(a => a.isActive).length;
+      stats.value.poolAccounts = fbAccounts.value.filter(a => a.inPool && a.isActive).length;
+      stats.value.todayActions = fbAccounts.value.reduce((s, a) => s + (a.actionsDone || 0), 0);
+    }
+    
+    async function handleLogin() {
+      const u = authForm.value.username;
+      const p = authForm.value.password;
+      if (!u || !p) { toast('Credentials required', 'err'); return; }
+      loading.session = true;
+      try {
+        const r = await api.post('/auth/login', { username: u, password: p });
+        if (r.data.success) {
+          localStorage.setItem('kdxfb_token', r.data.token);
+          user.value = { id: r.data.userId, username: r.data.username };
+          await loadSession();
+          toast('Authenticated', 'ok');
+        }
+      } catch (e) {
+        toast(e.response?.data?.error || 'Auth failed', 'err');
+      } finally {
+        loading.session = false;
+      }
+    }
+    
+    async function handleRegister() {
+      const u = authForm.value.username;
+      const p = authForm.value.password;
+      if (!u || !p) { toast('Credentials required', 'err'); return; }
+      loading.session = true;
+      try {
+        const r = await api.post('/auth/register', {
+          username: u,
+          password: p,
+          agreedToS: true
+        });
+        if (r.data.success) {
+          localStorage.setItem('kdxfb_token', r.data.token);
+          user.value = { id: r.data.userId, username: r.data.username };
+          await loadSession();
+          toast('Neuron initialized', 'ok');
+        }
+      } catch (e) {
+        toast(e.response?.data?.error || 'Init failed', 'err');
+      } finally {
+        loading.session = false;
+      }
+    }
+    
+    async function logout() {
+      try {
+        await api.post('/auth/logout');
+      } catch (e) {
+        // Ignore
+      }
+      localStorage.removeItem('kdxfb_token');
+      user.value = { id: '', username: '...', role: '' };
+      fbAccounts.value = [];
+      processes.value = [];
+      page.value = 'auth';
+      history.value = [];
+      showDisconnect.value = false;
+      toast('Disconnected', 'ok');
+    }
+    
+    async function addFbAccount() {
+      loading.addAccount = true;
+      try {
+        const r = await api.post('/accounts/add', {
+          email: newAcc.value.email,
+          password: newAcc.value.password
+        });
+        if (r.data.success) {
+          fbAccounts.value.push(r.data.account);
+          newAcc.value = { email: '', password: '' };
+          showAddAccount.value = false;
+          calcStats();
+          toast('Neuron connected', 'ok');
+        }
+      } catch (e) {
+        toast(e.response?.data?.error || 'Failed', 'err');
+      } finally {
+        loading.addAccount = false;
+      }
+    }
+    
+    async function togglePool(acc) {
+      try {
+        const r = await api.put(`/accounts/${acc.id}/toggle-pool`);
+        const i = fbAccounts.value.findIndex(a => a.id === acc.id);
+        if (i !== -1) fbAccounts.value[i].inPool = r.data.account.inPool;
+        calcStats();
+      } catch (e) {
+        toast('Failed', 'err');
+      }
+    }
+    
+    async function removeAccount(id) {
+      try {
+        await api.delete(`/accounts/${id}`);
+        fbAccounts.value = fbAccounts.value.filter(a => a.id !== id);
+        calcStats();
+        toast('Account removed', 'ok');
+      } catch (e) {
+        toast('Failed to remove account', 'err');
+      }
+    }
+    
+    async function submitFollow() {
+      loading.follow = true;
+      try {
+        const r = await api.post('/tools/follow', followForm.value);
+        if (r.data.cooldown) {
+          cooldownMsg.value = `Cooldown: ${r.data.cooldown} min.`;
+          nav('cooldown');
+        } else if (r.data.success) {
+          toast(`${r.data.count}/${r.data.totalAttempted} signals sent`, 'ok');
+          loadProcesses();
+          lastAction.value = 0;
+        }
+      } catch (e) {
+        if (e.response?.data?.cooldown) {
+          cooldownMsg.value = e.response.data.message;
+          nav('cooldown');
+        } else {
+          toast(e.response?.data?.error || 'Failed', 'err');
+        }
+      } finally {
+        loading.follow = false;
+      }
+    }
+    
+    async function submitReaction() {
+      loading.reaction = true;
+      try {
+        const r = await api.post('/tools/reactions', reactionForm.value);
+        if (r.data.cooldown) {
+          cooldownMsg.value = `Cooldown: ${r.data.cooldown} min.`;
+          nav('cooldown');
+        } else if (r.data.success) {
+          toast(`${r.data.count}/${r.data.totalAttempted} pulses sent`, 'ok');
+          loadProcesses();
+          lastAction.value = 0;
+        }
+      } catch (e) {
+        if (e.response?.data?.cooldown) {
+          cooldownMsg.value = e.response.data.message;
+          nav('cooldown');
+        } else {
+          toast(e.response?.data?.error || 'Failed', 'err');
+        }
+      } finally {
+        loading.reaction = false;
+      }
+    }
+    
+    async function submitShare() {
+      loading.share = true;
+      try {
+        const r = await api.post('/tools/share', shareForm.value);
+        if (r.data.success) {
+          toast(`${r.data.count}/${r.data.totalAttempted} broadcasts sent`, 'ok');
+          loadProcesses();
+          lastAction.value = 0;
+        }
+      } catch (e) {
+        toast(e.response?.data?.error || 'Failed', 'err');
+      } finally {
+        loading.share = false;
+      }
+    }
+    
+    async function loadProcesses() {
+      try {
+        const r = await api.get('/processes');
+        processes.value = r.data.processes || [];
+      } catch (e) {
+        // Silent
+      }
+    }
+    
+    async function pauseProc(id) {
+      try {
+        await api.put(`/processes/${id}/pause`);
+        loadProcesses();
+      } catch (e) {
+        // Silent
+      }
+    }
+    
+    async function resumeProc(id) {
+      try {
+        await api.put(`/processes/${id}/resume`);
+        loadProcesses();
+      } catch (e) {
+        // Silent
+      }
+    }
+    
+    async function stopProc(id) {
+      try {
+        await api.delete(`/processes/${id}`);
+        loadProcesses();
+      } catch (e) {
+        // Silent
+      }
+    }
+    
+    async function loadAnalytics() {
+      try {
+        const r = await api.get(`/analytics?period=${period.value}`);
+        analytics.value = r.data.analytics || [];
+      } catch (e) {
+        // Silent
+      }
+    }
+    
+    function createNeuralBg() {
+      const el = document.getElementById('neuralBg');
+      if (!el) return;
+      for (let i = 0; i < 12; i++) {
+        const node = document.createElement('div');
+        node.className = 'neural-node';
+        node.style.left = Math.random() * 100 + '%';
+        node.style.top = Math.random() * 100 + '%';
+        el.appendChild(node);
+      }
+      for (let i = 0; i < 8; i++) {
+        const line = document.createElement('div');
+        line.className = 'neural-line';
+        line.style.left = Math.random() * 80 + '%';
+        line.style.top = Math.random() * 80 + '%';
+        line.style.width = (30 + Math.random() * 100) + 'px';
+        line.style.transform = `rotate(${Math.random() * 360}deg)`;
+        line.style.animationDelay = Math.random() * 4 + 's';
+        el.appendChild(line);
+      }
+    }
+    
+    function bootSequence() {
+      const lines = [
+        'INITIALIZING NEURAL NETWORK...',
+        'CONNECTING SYNAPSES... [OK]',
+        'LOADING CORTEX MODULES... [OK]',
+        'SIGNAL PROTOCOLS: READY',
+        'SYNAPSE v2.0: ONLINE'
+      ];
+      const el = document.getElementById('bootLog');
+      if (!el) return;
+      let i = 0;
+      
+      function show() {
+        if (i < lines.length) {
+          const d = document.createElement('div');
+          d.className = 'boot-log-line';
+          d.style.animationDelay = (i * 0.1) + 's';
+          d.textContent = lines[i];
+          el.appendChild(d);
+          i++;
+          setTimeout(show, 180);
+        } else {
+          setTimeout(() => {
+            document.getElementById('loadingOverlay')?.classList.add('hidden');
+            const app = document.getElementById('app');
+            if (app) app.style.display = 'block';
+            setTimeout(() => document.getElementById('loadingOverlay')?.remove(), 500);
+          }, 600);
+        }
+      }
+      show();
+    }
+    
+    let seconds = 0;
+    function startUptime() {
+      setInterval(() => {
+        seconds++;
+        lastAction.value++;
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        uptime.value = h > 0 ? `${h}h${m}m` : m > 0 ? `${m}m${seconds % 60}s` : `${seconds % 60}s`;
+      }, 1000);
+    }
+    
+    function handleKeyboard(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      const k = e.key.toLowerCase();
+      if (k === 'escape') { e.preventDefault(); goBack(); }
+      else if (!authenticated.value) return;
+      else if (k === 'h') { e.preventDefault(); nav('faq'); }
+      else if (k === '1') { e.preventDefault(); nav('dashboard'); }
+      else if (k === '2') { e.preventDefault(); nav('accounts'); }
+      else if (k === '3') { e.preventDefault(); nav('analytics'); }
+      else if (k === '4') { e.preventDefault(); nav('processes'); }
+      else if (k === '5') { e.preventDefault(); nav('faq'); }
+      else if (k === 'f') { e.preventDefault(); nav('tool-follow'); }
+      else if (k === 'r') { e.preventDefault(); nav('tool-reactions'); }
+      else if (k === 's') { e.preventDefault(); nav('tool-share'); }
+      else if (k === 'tab') { e.preventDefault(); sidebarOpen.value = !sidebarOpen.value; }
+    }
+    
+    onMounted(async () => {
+      createNeuralBg();
+      bootSequence();
+      startUptime();
+      document.addEventListener('keydown', handleKeyboard);
+      
+      const token = localStorage.getItem('kdxfb_token');
+      if (token) {
+        const ok = await loadSession();
+        if (!ok) {
+          page.value = 'auth';
+          loading.session = false;
+        }
+      } else {
+        page.value = 'auth';
+        loading.session = false;
+        document.getElementById('loadingOverlay')?.classList.add('hidden');
+        const app = document.getElementById('app');
+        if (app) app.style.display = 'block';
+        setTimeout(() => document.getElementById('loadingOverlay')?.remove(), 500);
+      }
+    });
+    
+    return {
+      page, sidebarOpen, showAddAccount, showDisconnect, period, authMode, tosExpanded, agreedToS, history, showPassword, isLoginValid, isRegisterValid,
+      user, fbAccounts, processes, analytics, stats,
+      authForm, followForm, reactionForm, shareForm, newAcc,
+      loading, cooldownMsg, toasts, uptime, lastAction, successRate, faqs,
+      authenticated,
+      nav, goBack, statusBadge, procPercent, successPercent,
+      handleLogin, handleRegister, logout,
+      addFbAccount, togglePool, removeAccount,
+      submitFollow, submitReaction, submitShare,
+      loadProcesses, pauseProc, resumeProc, stopProc,
+      loadAnalytics
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
