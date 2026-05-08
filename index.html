@@ -773,24 +773,33 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
+        // Unregister any old service workers first
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+          await registration.unregister();
+          console.log('Unregistered old SW');
+        }
+        
+        // Register new SW
         const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('SW registered:', registration);
   
-        // auto update when new version detected
+        // Auto update when new version detected
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
+          console.log('SW update found');
   
           newWorker.addEventListener('statechange', () => {
-            if (
-              newWorker.state === 'installed' &&
-              navigator.serviceWorker.controller
-            ) {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('New SW installed, reloading...');
               newWorker.postMessage('SKIP_WAITING');
             }
           });
         });
   
-        // reload automatically after update
+        // Reload automatically after update
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('SW controller changed, reloading...');
           window.location.reload();
         });
   
