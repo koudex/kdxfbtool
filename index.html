@@ -351,12 +351,6 @@
     
     .sidebar-link.active::before { height: 60%; }
     
-    .sidebar-link.disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-    
     .sidebar-link .idot {
       width: 4px;
       height: 4px;
@@ -374,6 +368,13 @@
       font-size: 0.55rem;
       color: var(--text-muted);
       margin-left: auto;
+    }
+
+    /* Disabled sidebar link */
+    .sidebar-link.disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      pointer-events: none;
     }
 
     .sidebar-footer { padding: 10px; border-top: 1px solid var(--border-subtle); }
@@ -519,6 +520,13 @@
     .cortex-panel.teal { border-color: var(--syn-teal-dim); }
     .cortex-panel.teal::after { background: linear-gradient(90deg, transparent, var(--syn-teal), transparent); }
 
+    /* Panel disabled state */
+    .cortex-panel.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
     /* Buttons */
     .btn {
       display: inline-flex;
@@ -621,7 +629,6 @@
     .badge-err { color: var(--syn-rose); border-color: rgba(244,63,94,0.4); }
     .badge-info { color: var(--syn-purple); border-color: rgba(139,92,246,0.4); }
     .badge-teal { color: var(--syn-teal); border-color: rgba(45,212,191,0.4); }
-    .badge-dim { color: var(--text-muted); border-color: rgba(109,107,144,0.3); }
 
     /* Progress bar */
     .progress {
@@ -867,13 +874,13 @@
         </button>
         
         <div class="nav-group">Tools</div>
-        <button @click="nav('tool-follow')" class="sidebar-link" :class="{active:page==='tool-follow', disabled:!hasOwnAccount}">
+        <button @click="nav('tool-follow')" class="sidebar-link" :class="{active:page==='tool-follow', disabled:!hasAccounts}">
           <span class="idot"></span> follower boost <span class="key">F</span>
         </button>
-        <button @click="nav('tool-reactions')" class="sidebar-link" :class="{active:page==='tool-reactions', disabled:!hasOwnAccount}">
+        <button @click="nav('tool-reactions')" class="sidebar-link" :class="{active:page==='tool-reactions', disabled:!hasAccounts}">
           <span class="idot"></span> reactions boost <span class="key">R</span>
         </button>
-        <button @click="nav('tool-share')" class="sidebar-link" :class="{active:page==='tool-share', disabled:!hasOwnAccount}">
+        <button @click="nav('tool-share')" class="sidebar-link" :class="{active:page==='tool-share', disabled:!hasAccounts}">
           <span class="idot"></span> spamshare boost <span class="key">S</span>
         </button>
       </nav>
@@ -897,7 +904,7 @@
         <div class="header-meta">
           <span>user:{{ user.username||'---' }}</span>
           <span>accounts:{{ stats.totalAccounts }}</span>
-          <span>pool:{{ stats.poolAccounts }}</span>
+          <span>pool:{{ globalPoolCount }}</span>
         </div>
       </header>
       
@@ -993,75 +1000,49 @@
           </div>
         </template>
         
+        <!-- ═══════ NO ACCOUNTS WARNING ═══════ -->
+        <template v-if="authenticated && !hasAccounts && page!=='accounts'">
+          <div class="cortex-panel" style="border-color:var(--syn-amber);max-width:500px;margin:30px auto">
+            <div class="cortex-panel-body text-center">
+              <div style="font-size:2rem;color:var(--syn-amber);margin-bottom:8px">⚠️</div>
+              <div class="font-bold text-amber mb-2" style="font-size:0.9rem">No Accounts Connected</div>
+              <div class="text-dim text-sm mb-3">You need at least one Facebook account to use the boosting tools. Add an account to get started.</div>
+              <button @click="nav('accounts')" class="btn btn-primary btn-sm">Go to Accounts</button>
+            </div>
+          </div>
+        </template>
+        
         <!-- ═══════ DASHBOARD ═══════ -->
-        <template v-if="authenticated && page==='dashboard'">
+        <template v-if="authenticated && page==='dashboard' && hasAccounts">
           <div class="grid-4">
-            <div class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">total accounts</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-purple)">{{ stats.totalAccounts }}</div></div></div>
+            <div class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">your accounts</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-purple)">{{ stats.totalAccounts }}</div></div></div>
             <div class="cortex-panel teal text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">active</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-teal)">{{ stats.activeAccounts }}</div></div></div>
-            <div class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">pool accounts</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-purple)">{{ stats.poolAccounts }}</div></div></div>
+            <div class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">global pool</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-purple)">{{ globalPoolCount }}</div></div></div>
             <div class="cortex-panel text-center" style="border-color:var(--syn-amber);"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-1">today actions</div><div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--syn-amber)">{{ stats.todayActions }}</div></div></div>
           </div>
-          
-          <!-- No accounts warning -->
-          <div v-if="!hasOwnAccount" class="cortex-panel" style="border-color:var(--syn-amber);margin-top:8px">
-            <div class="cortex-panel-body">
-              <div class="flex items-center gap-2 mb-2">
-                <span class="text-amber font-bold">⚠️</span>
-                <span class="text-amber font-bold text-sm">Account Required</span>
-              </div>
-              <p class="text-dim text-sm mb-2">You need to add at least one Facebook account before using any boosting tools. This ensures fair participation in the exchange pool.</p>
-              <button @click="nav('accounts')" class="btn btn-primary btn-sm">+ Add Account Now</button>
-            </div>
-          </div>
-          
-          <div class="grid-3" style="margin-top:8px">
-            <div @click="hasOwnAccount ? nav('tool-follow') : toast('Add an account first','warn')" class="cortex-panel purple" :style="{cursor: hasOwnAccount ? 'pointer' : 'not-allowed', opacity: hasOwnAccount ? 1 : 0.6}">
-              <div class="cortex-panel-header">follower boost</div>
-              <div class="cortex-panel-body">
-                <div class="text-dim text-sm mb-2">Transmit follows through account pool</div>
-                <div class="flex justify-between text-xs text-dim mb-2"><span>Available Pool</span><span class="text-teal">{{ stats.totalPoolAvailable }}</span></div>
-                <div class="progress"><div class="progress-fill" :style="{width:poolPercent}"></div></div>
-              </div>
-            </div>
-            <div @click="hasOwnAccount ? nav('tool-reactions') : toast('Add an account first','warn')" class="cortex-panel purple" :style="{cursor: hasOwnAccount ? 'pointer' : 'not-allowed', opacity: hasOwnAccount ? 1 : 0.6}">
-              <div class="cortex-panel-header">reaction boost</div>
-              <div class="cortex-panel-body">
-                <div class="text-dim text-sm mb-2">send reactions to target url</div>
-                <div class="flex justify-between text-xs text-dim mb-2"><span>reaction types</span><span class="text-teal">7</span></div>
-                <div class="progress"><div class="progress-fill" style="width:72%"></div></div>
-              </div>
-            </div>
-            <div @click="hasOwnAccount ? nav('tool-share') : toast('Add an account first','warn')" class="cortex-panel teal" :style="{cursor: hasOwnAccount ? 'pointer' : 'not-allowed', opacity: hasOwnAccount ? 1 : 0.6}">
-              <div class="cortex-panel-header" style="color:var(--syn-teal)">spamshare boost</div>
-              <div class="cortex-panel-body">
-                <div class="text-dim text-sm mb-2">spam shares to a target post</div>
-                <div class="flex justify-between text-xs text-dim mb-2"><span>delay config</span><span class="text-teal">1-60s</span></div>
-                <div class="progress"><div class="progress-fill teal" style="width:45%"></div></div>
-              </div>
-            </div>
+          <div class="grid-3">
+            <div @click="nav('tool-follow')" class="cortex-panel purple" style="cursor:pointer"><div class="cortex-panel-header">follower boost</div><div class="cortex-panel-body"><div class="text-dim text-sm mb-2">Transmit follows through account pool</div><div class="flex justify-between text-xs text-dim mb-2"><span>Available Pool</span><span class="text-teal">{{ globalPoolCount }}</span></div><div class="progress"><div class="progress-fill" style="width:85%"></div></div></div></div>
+            <div @click="nav('tool-reactions')" class="cortex-panel purple" style="cursor:pointer"><div class="cortex-panel-header">reaction boost</div><div class="cortex-panel-body"><div class="text-dim text-sm mb-2">send reactions to target url</div><div class="flex justify-between text-xs text-dim mb-2"><span>reaction types</span><span class="text-teal">7</span></div><div class="progress"><div class="progress-fill" style="width:72%"></div></div></div></div>
+            <div @click="nav('tool-share')" class="cortex-panel teal" style="cursor:pointer"><div class="cortex-panel-header" style="color:var(--syn-teal)">spamshare boost</div><div class="cortex-panel-body"><div class="text-dim text-sm mb-2">spam shares to a target post</div><div class="flex justify-between text-xs text-dim mb-2"><span>delay config</span><span class="text-teal">1-60s</span></div><div class="progress"><div class="progress-fill teal" style="width:45%"></div></div></div></div>
           </div>
         </template>
         
         <!-- ═══════ ACCOUNTS ═══════ -->
         <template v-if="authenticated && page==='accounts'">
           <div class="flex items-center justify-between mb-2"><h2>accounts</h2><button @click="showAddAccount=true" class="btn btn-primary btn-sm">+ add account</button></div>
-          <div v-if="fbAccounts.length===0" class="cortex-panel text-center" style="padding:40px">
-            <div class="text-dim mb-3">no accounts connected</div>
-            <p class="text-xs text-muted mb-3">You need at least one account to use the boosting tools.</p>
-            <button @click="showAddAccount=true" class="btn btn-primary">+ Add Account</button>
-          </div>
-          <div v-for="(acc,i) in fbAccounts" :key="acc.id" class="cortex-panel"><div class="cortex-panel-body"><div class="flex items-center justify-between flex-wrap gap-2"><div class="flex items-center gap-3"><span class="text-muted text-xs">{{ i+1 }}</span><div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.15);border:1px solid var(--syn-purple);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;color:var(--syn-purple);font-size:0.7rem">{{ acc.fbName.charAt(0) }}</div><div><div class="font-bold">{{ acc.fbName }}</div><div class="text-xs text-dim">ID:{{ acc.fbUserId }}</div></div></div><div class="flex items-center gap-2"><span class="badge" :class="acc.isActive?'badge-ok':'badge-err'">{{ acc.isActive?'active':'dead' }}</span><span class="badge" :class="acc.inPool?'badge-info':'badge-dim'">{{ acc.inPool?'pool':'excluded' }}</span><button @click="togglePool(acc)" class="btn btn-xs">{{ acc.inPool?'Remove':'Add' }}</button><button @click="removeAccount(acc.id)" class="btn btn-xs btn-danger">Del</button></div></div></div></div>
+          <div v-if="fbAccounts.length===0" class="cortex-panel text-center" style="padding:40px"><div class="text-dim">no accounts connected</div><div class="text-xs text-muted mt-2">Add a Facebook account to access the boosting tools</div></div>
+          <div v-for="(acc,i) in fbAccounts" :key="acc.id" class="cortex-panel"><div class="cortex-panel-body"><div class="flex items-center justify-between flex-wrap gap-2"><div class="flex items-center gap-3"><span class="text-muted text-xs">{{ i+1 }}</span><div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.15);border:1px solid var(--syn-purple);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;color:var(--syn-purple);font-size:0.7rem">{{ acc.fbName.charAt(0) }}</div><div><div class="font-bold">{{ acc.fbName }}</div><div class="text-xs text-dim">ID:{{ acc.fbUserId }}</div></div></div><div class="flex items-center gap-2"><span class="badge" :class="acc.isActive?'badge-ok':'badge-err'">{{ acc.isActive?'active':'dead' }}</span><span class="badge badge-info">pool</span><button @click="removeAccount(acc.id)" class="btn btn-xs btn-danger">Del</button></div></div></div></div>
         </template>
         
         <!-- ═══════ ANALYTICS ═══════ -->
-        <template v-if="authenticated && page==='analytics'">
+        <template v-if="authenticated && page==='analytics' && hasAccounts">
           <h2 class="mb-2">analytics</h2>
           <div class="flex gap-2 mb-3"><button v-for="p in ['today','week','month']" :key="p" @click="period=p;loadAnalytics()" class="btn btn-sm" :class="{'btn-primary':period===p}">{{ p.toUpperCase() }}</button></div>
           <div class="grid-3"><div v-for="a in analytics" :key="a._id" class="cortex-panel purple text-center"><div class="cortex-panel-body"><div class="text-xs text-dim uppercase tracking mb-2">{{ a._id }}</div><div style="font-size:1.6rem;font-weight:700;color:var(--syn-purple)">{{ (a.totalSuccess||0)+(a.totalFailed||0) }}</div><div class="flex gap-3 text-xs mt-1 justify-center"><span class="text-emerald">OK:{{ a.totalSuccess||0 }}</span><span class="text-rose">ERR:{{ a.totalFailed||0 }}</span></div><div class="progress mt-2"><div class="progress-fill" :style="{width:successPercent(a)+'%'}"></div></div></div></div></div>
         </template>
         
         <!-- ═══════ PROCESSES ═══════ -->
-        <template v-if="authenticated && page==='processes'">
+        <template v-if="authenticated && page==='processes' && hasAccounts">
           <h2 class="mb-2">active proccesses</h2>
           <div v-if="processes.length===0" class="cortex-panel text-center" style="padding:40px"><div class="text-dim">no active proccesses</div></div>
           <div v-for="p in processes" :key="p._id" class="cortex-panel" :class="{purple:p.status==='running',teal:p.status==='completed'}" :style="p.status==='paused'?'border-color:var(--syn-amber)':''"><div class="cortex-panel-body"><div class="flex items-center justify-between flex-wrap gap-2 mb-2"><div class="flex items-center gap-2"><span class="badge" :class="statusBadge(p.status)">{{ p.status.toUpperCase() }}</span><span class="font-bold uppercase">{{ p.type }}</span><span class="text-xs text-muted">#{{ p._id.slice(-6) }}</span></div><div class="flex gap-1"><button v-if="p.status==='running'" @click="pauseProc(p._id)" class="btn btn-xs">pause</button><button v-if="p.status==='paused'" @click="resumeProc(p._id)" class="btn btn-xs btn-primary">resume</button><button @click="stopProc(p._id)" class="btn btn-xs btn-danger">stop</button></div></div><div class="progress mb-1"><div class="progress-fill" :class="{'amber':p.status==='paused','rose':p.status==='stopped'}" :style="{width:procPercent(p)+'%'}"></div></div><div class="flex justify-between text-xs text-dim"><span>oK:{{ p.successCount }}/{{ p.totalCount }}</span><span>ERR:{{ p.failedCount }}</span><span>{{ procPercent(p) }}%</span></div></div></div>
@@ -1075,32 +1056,17 @@
         </template>
         
         <!-- ═══════ TOOLS ═══════ -->
-        <template v-if="authenticated && page==='tool-follow'">
+        <template v-if="authenticated && page==='tool-follow' && hasAccounts">
           <button @click="goBack" class="btn btn-sm mb-2">back</button>
-          <div v-if="!hasOwnAccount" class="cortex-panel text-center" style="max-width:560px;padding:30px;border-color:var(--syn-amber)">
-            <div class="text-amber font-bold mb-2">⚠️ Account Required</div>
-            <p class="text-dim text-sm mb-3">You need to add at least one Facebook account before using this tool.</p>
-            <button @click="nav('accounts')" class="btn btn-primary btn-sm">+ Add Account</button>
-          </div>
-          <div v-else class="cortex-panel purple" style="max-width:560px"><div class="cortex-panel-header">follower boost</div><div class="cortex-panel-body"><form @submit.prevent="submitFollow" class="flex flex-col gap-3"><div><label>Target URL</label><input v-model="followForm.link" type="url" required class="input" placeholder="https://facebook.com/target"></div><div><label>count</label><select v-model="followForm.limit" class="input"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></div><button type="submit" :disabled="loading.follow" class="btn btn-primary"><span v-if="loading.follow" class="spinner"></span><span v-else>start follow</span></button></form></div></div>
+          <div class="cortex-panel purple" style="max-width:560px"><div class="cortex-panel-header">follower boost</div><div class="cortex-panel-body"><form @submit.prevent="submitFollow" class="flex flex-col gap-3"><div><label>Target URL</label><input v-model="followForm.link" type="url" required class="input" placeholder="https://facebook.com/target"></div><div><label>count</label><select v-model="followForm.limit" class="input"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></div><button type="submit" :disabled="loading.follow" class="btn btn-primary"><span v-if="loading.follow" class="spinner"></span><span v-else>start follow</span></button></form></div></div>
         </template>
-        <template v-if="authenticated && page==='tool-reactions'">
+        <template v-if="authenticated && page==='tool-reactions' && hasAccounts">
           <button @click="goBack" class="btn btn-sm mb-2">back</button>
-          <div v-if="!hasOwnAccount" class="cortex-panel text-center" style="max-width:560px;padding:30px;border-color:var(--syn-amber)">
-            <div class="text-amber font-bold mb-2">⚠️ Account Required</div>
-            <p class="text-dim text-sm mb-3">You need to add at least one Facebook account before using this tool.</p>
-            <button @click="nav('accounts')" class="btn btn-primary btn-sm">+ Add Account</button>
-          </div>
-          <div v-else class="cortex-panel purple" style="max-width:560px"><div class="cortex-panel-header">reaction boost</div><div class="cortex-panel-body"><form @submit.prevent="submitReaction" class="flex flex-col gap-3"><div><label>post url</label><input v-model="reactionForm.link" type="url" required class="input" placeholder="https://facebook.com/post"></div><div><label>reaction type</label><select v-model="reactionForm.type" class="input"><option value="LIKE">like</option><option value="LOVE">love</option><option value="CARE">care</option><option value="HAHA">haha</option><option value="WOW">wow</option><option value="SAD">sad</option><option value="ANGRY">angry</option></select></div><div><label>reaction count</label><select v-model="reactionForm.limit" class="input"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></div><button type="submit" :disabled="loading.reaction" class="btn btn-primary"><span v-if="loading.reaction" class="spinner"></span><span v-else>start react</span></button></form></div></div>
+          <div class="cortex-panel purple" style="max-width:560px"><div class="cortex-panel-header">reaction boost</div><div class="cortex-panel-body"><form @submit.prevent="submitReaction" class="flex flex-col gap-3"><div><label>post url</label><input v-model="reactionForm.link" type="url" required class="input" placeholder="https://facebook.com/post"></div><div><label>reaction type</label><select v-model="reactionForm.type" class="input"><option value="LIKE">like</option><option value="LOVE">love</option><option value="CARE">care</option><option value="HAHA">haha</option><option value="WOW">wow</option><option value="SAD">sad</option><option value="ANGRY">angry</option></select></div><div><label>reaction count</label><select v-model="reactionForm.limit" class="input"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></div><button type="submit" :disabled="loading.reaction" class="btn btn-primary"><span v-if="loading.reaction" class="spinner"></span><span v-else>start react</span></button></form></div></div>
         </template>
-        <template v-if="authenticated && page==='tool-share'">
+        <template v-if="authenticated && page==='tool-share' && hasAccounts">
           <button @click="goBack" class="btn btn-sm mb-2">back</button>
-          <div v-if="!hasOwnAccount" class="cortex-panel text-center" style="max-width:560px;padding:30px;border-color:var(--syn-amber)">
-            <div class="text-amber font-bold mb-2">⚠️ Account Required</div>
-            <p class="text-dim text-sm mb-3">You need to add at least one Facebook account before using this tool.</p>
-            <button @click="nav('accounts')" class="btn btn-primary btn-sm">+ Add Account</button>
-          </div>
-          <div v-else class="cortex-panel teal" style="max-width:560px"><div class="cortex-panel-header" style="color:var(--syn-teal)">spamshare boost</div><div class="cortex-panel-body"><form @submit.prevent="submitShare" class="flex flex-col gap-3"><div><label>post url</label><input v-model="shareForm.link" type="url" required class="input" placeholder="https://facebook.com/post"></div><div><label>account</label><select v-model="shareForm.accountId" class="input"><option value="">Auto</option><option v-for="a in fbAccounts" :key="a.id" :value="a.id">{{ a.fbName }}</option></select></div><div class="grid-2"><div><label>delay (sec)</label><input v-model="shareForm.delay" type="number" min="1" class="input" value="5"></div><div><label>count</label><input v-model="shareForm.limit" type="number" min="1" max="200" class="input" value="10"></div></div><button type="submit" :disabled="loading.share" class="btn btn-teal"><span v-if="loading.share" class="spinner"></span><span v-else>start share</span></button></form></div></div>
+          <div class="cortex-panel teal" style="max-width:560px"><div class="cortex-panel-header" style="color:var(--syn-teal)">spamshare boost</div><div class="cortex-panel-body"><form @submit.prevent="submitShare" class="flex flex-col gap-3"><div><label>post url</label><input v-model="shareForm.link" type="url" required class="input" placeholder="https://facebook.com/post"></div><div><label>account</label><select v-model="shareForm.accountId" class="input"><option value="">Auto</option><option value="all">All My Accounts</option><option v-for="a in fbAccounts" :key="a.id" :value="a.id">{{ a.fbName }}</option></select></div><div class="grid-2"><div><label>delay (sec)</label><input v-model="shareForm.delay" type="number" min="1" class="input" value="5"></div><div><label>count</label><input v-model="shareForm.limit" type="number" min="1" max="200" class="input" value="10"></div></div><button type="submit" :disabled="loading.share" class="btn btn-teal"><span v-if="loading.share" class="spinner"></span><span v-else>start share</span></button></form></div></div>
         </template>
         
         <!-- ═══════ COOLDOWN ═══════ -->
@@ -1131,7 +1097,7 @@
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.14/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-const { createApp, ref, reactive, onMounted, computed, onUnmounted } = Vue;
+const { createApp, ref, reactive, onMounted, computed } = Vue;
 
 createApp({
   setup() {
@@ -1150,7 +1116,8 @@ createApp({
     const fbAccounts = ref([]);
     const processes = ref([]);
     const analytics = ref([]);
-    const stats = ref({ totalAccounts: 0, activeAccounts: 0, poolAccounts: 0, todayActions: 0, totalPoolAvailable: 0 });
+    const stats = ref({ totalAccounts: 0, activeAccounts: 0, poolAccounts: 0, todayActions: 0 });
+    const globalPoolCount = ref(0);
     
     const authForm = ref({ username: '', password: '' });
     const followForm = ref({ link: '', limit: '10' });
@@ -1172,9 +1139,6 @@ createApp({
     const lastAction = ref(0);
     const successRate = ref(100);
     
-    // Process polling interval
-    let processPollInterval = null;
-    
     const isLoginValid = computed(() => {
       return authForm.value.username.trim().length >= 3 && 
              authForm.value.password.trim().length >= 6;
@@ -1190,26 +1154,12 @@ createApp({
     const authenticated = computed(() => user.value.id && user.value.id !== '');
     
     // Check if user has at least one account
-    const hasOwnAccount = computed(() => {
-      return fbAccounts.value.length > 0;
-    });
-    
-    // Pool percentage for display
-    const poolPercent = computed(() => {
-      if (stats.value.totalPoolAvailable <= 0) return '0%';
-      const pct = Math.min(100, Math.round((stats.value.totalPoolAvailable / 20) * 100));
-      return pct + '%';
-    });
+    const hasAccounts = computed(() => fbAccounts.value.length > 0);
     
     const faqs = ref([
       { 
         q: 'How does this tool actually work?', 
         a: 'The tool connects Facebook accounts to a shared exchange pool. When you request followers, reactions, or shares, the system distributes the task across other active accounts in the pool. In return, your accounts help others when they make requests. This mutual exchange system makes actions appear more natural than using bots or fake accounts.',
-        open: false 
-      },
-      { 
-        q: 'Why do I need to add my own account first?', 
-        a: 'This ensures fair participation. Everyone contributes to the pool by adding their accounts. Without this requirement, some users could use the service without contributing anything back. Your accounts are randomly selected from the pool just like everyone else\'s.',
         open: false 
       },
       { 
@@ -1239,7 +1189,7 @@ createApp({
       },
       { 
         q: 'Why do I need to add accounts to the pool?', 
-        a: 'The pool is the core of the system. When you add accounts, they help other users with their requests. In exchange, other users\' accounts help you. Without the pool, there would be no accounts available to fulfill requests. You can toggle individual accounts in/out of the pool at any time.',
+        a: 'The pool is the core of the system. When you add accounts, they help other users with their requests. In exchange, other users\' accounts help you. Without the pool, there would be no accounts available to fulfill requests. Your accounts are automatically added to the pool when connected.',
         open: false 
       },
       { 
@@ -1249,7 +1199,7 @@ createApp({
       },
       { 
         q: 'What are the limits on usage?', 
-        a: 'Follows and reactions are limited by available accounts in the pool (5-20 per request). Shares can go up to 200 per session from your own account. Each account has a 30-minute cooldown. There is also a general rate limit of 200 API requests per 15 minutes to prevent abuse.',
+        a: 'Follows and reactions are limited by available accounts in the pool (5-20 per request). Shares can go up to 200 per session from your own account(s). Each account has a 30-minute cooldown. There is also a general rate limit of 200 API requests per 15 minutes to prevent abuse.',
         open: false 
       },
       { 
@@ -1288,10 +1238,13 @@ createApp({
     function nav(t) {
       if (!authenticated.value && t !== 'auth') return;
       
-      // Prevent navigation to tools if no account
-      if (t.startsWith('tool-') && !hasOwnAccount.value) {
-        toast('You need to add at least one Facebook account first', 'warn');
-        nav('accounts');
+      // Block tool pages if no accounts
+      if (authenticated.value && !hasAccounts.value && 
+          (t === 'tool-follow' || t === 'tool-reactions' || t === 'tool-share')) {
+        toast('Add an account first', 'warn');
+        page.value = 'accounts';
+        history.value = [];
+        sidebarOpen.value = false;
         return;
       }
       
@@ -1302,10 +1255,12 @@ createApp({
       }
       if (t === 'analytics') loadAnalytics();
       if (t === 'processes') loadProcesses();
+      if (t === 'dashboard') loadGlobalPoolCount();
     }
     
     function goBack() {
       page.value = history.value.length > 0 ? history.value.pop() : 'dashboard';
+      if (page.value === 'dashboard') loadGlobalPoolCount();
     }
     
     function statusBadge(s) {
@@ -1326,6 +1281,15 @@ createApp({
       return t ? Math.round((a.totalSuccess / t) * 100) : 100;
     }
     
+    async function loadGlobalPoolCount() {
+      try {
+        const r = await api.get('/pool/count');
+        globalPoolCount.value = r.data.count || 0;
+      } catch (e) {
+        // Silent
+      }
+    }
+    
     async function loadSession() {
       try {
         const r = await api.get('/auth/session');
@@ -1333,12 +1297,9 @@ createApp({
           user.value = r.data.user;
           fbAccounts.value = r.data.fbAccounts || [];
           calcStats();
-          
-          // Fetch total pool stats
-          await loadPoolStats();
-          
+          await loadGlobalPoolCount();
           if (page.value === 'loading' || page.value === 'auth') {
-            page.value = 'dashboard';
+            page.value = hasAccounts.value ? 'dashboard' : 'accounts';
             history.value = [];
           }
           return true;
@@ -1353,18 +1314,6 @@ createApp({
         return false;
       } finally {
         loading.session = false;
-      }
-    }
-    
-    async function loadPoolStats() {
-      try {
-        const r = await api.get('/accounts/pool-stats');
-        if (r.data.success) {
-          stats.value.totalPoolAvailable = r.data.totalPoolAvailable;
-          stats.value.totalAccountsGlobal = r.data.totalAccountsGlobal;
-        }
-      } catch (e) {
-        // Silent
       }
     }
     
@@ -1386,7 +1335,6 @@ createApp({
           localStorage.setItem('kdxfb_token', r.data.token);
           user.value = { id: r.data.userId, username: r.data.username };
           await loadSession();
-          startProcessPolling();
           toast('Authenticated', 'ok');
         }
       } catch (e) {
@@ -1411,7 +1359,6 @@ createApp({
           localStorage.setItem('kdxfb_token', r.data.token);
           user.value = { id: r.data.userId, username: r.data.username };
           await loadSession();
-          startProcessPolling();
           toast('Neuron initialized', 'ok');
         }
       } catch (e) {
@@ -1422,7 +1369,6 @@ createApp({
     }
     
     async function logout() {
-      stopProcessPolling();
       try {
         await api.post('/auth/logout');
       } catch (e) {
@@ -1432,6 +1378,7 @@ createApp({
       user.value = { id: '', username: '...', role: '' };
       fbAccounts.value = [];
       processes.value = [];
+      globalPoolCount.value = 0;
       page.value = 'auth';
       history.value = [];
       showDisconnect.value = false;
@@ -1450,7 +1397,7 @@ createApp({
           newAcc.value = { email: '', password: '' };
           showAddAccount.value = false;
           calcStats();
-          await loadPoolStats();
+          await loadGlobalPoolCount();
           toast('Neuron connected', 'ok');
         }
       } catch (e) {
@@ -1460,24 +1407,12 @@ createApp({
       }
     }
     
-    async function togglePool(acc) {
-      try {
-        const r = await api.put(`/accounts/${acc.id}/toggle-pool`);
-        const i = fbAccounts.value.findIndex(a => a.id === acc.id);
-        if (i !== -1) fbAccounts.value[i].inPool = r.data.account.inPool;
-        calcStats();
-        await loadPoolStats();
-      } catch (e) {
-        toast('Failed', 'err');
-      }
-    }
-    
     async function removeAccount(id) {
       try {
         await api.delete(`/accounts/${id}`);
         fbAccounts.value = fbAccounts.value.filter(a => a.id !== id);
         calcStats();
-        await loadPoolStats();
+        await loadGlobalPoolCount();
         toast('Account removed', 'ok');
       } catch (e) {
         toast('Failed to remove account', 'err');
@@ -1485,8 +1420,8 @@ createApp({
     }
     
     async function submitFollow() {
-      if (!hasOwnAccount.value) {
-        toast('Add an account first', 'warn');
+      if (!hasAccounts.value) {
+        toast('Add an account first', 'err');
         return;
       }
       loading.follow = true;
@@ -1499,6 +1434,7 @@ createApp({
           toast(`${r.data.count}/${r.data.totalAttempted} signals sent`, 'ok');
           loadProcesses();
           lastAction.value = 0;
+          await loadGlobalPoolCount();
         }
       } catch (e) {
         if (e.response?.data?.cooldown) {
@@ -1513,8 +1449,8 @@ createApp({
     }
     
     async function submitReaction() {
-      if (!hasOwnAccount.value) {
-        toast('Add an account first', 'warn');
+      if (!hasAccounts.value) {
+        toast('Add an account first', 'err');
         return;
       }
       loading.reaction = true;
@@ -1527,6 +1463,7 @@ createApp({
           toast(`${r.data.count}/${r.data.totalAttempted} pulses sent`, 'ok');
           loadProcesses();
           lastAction.value = 0;
+          await loadGlobalPoolCount();
         }
       } catch (e) {
         if (e.response?.data?.cooldown) {
@@ -1541,8 +1478,8 @@ createApp({
     }
     
     async function submitShare() {
-      if (!hasOwnAccount.value) {
-        toast('Add an account first', 'warn');
+      if (!hasAccounts.value) {
+        toast('Add an account first', 'err');
         return;
       }
       loading.share = true;
@@ -1552,6 +1489,7 @@ createApp({
           toast(`${r.data.count}/${r.data.totalAttempted} broadcasts sent`, 'ok');
           loadProcesses();
           lastAction.value = 0;
+          await loadGlobalPoolCount();
         }
       } catch (e) {
         toast(e.response?.data?.error || 'Failed', 'err');
@@ -1566,23 +1504,6 @@ createApp({
         processes.value = r.data.processes || [];
       } catch (e) {
         // Silent
-      }
-    }
-    
-    function startProcessPolling() {
-      stopProcessPolling();
-      // Poll every 3 seconds for process updates
-      processPollInterval = setInterval(() => {
-        if (authenticated.value) {
-          loadProcesses();
-        }
-      }, 3000);
-    }
-    
-    function stopProcessPolling() {
-      if (processPollInterval) {
-        clearInterval(processPollInterval);
-        processPollInterval = null;
       }
     }
     
@@ -1699,21 +1620,9 @@ createApp({
       else if (k === '3') { e.preventDefault(); nav('analytics'); }
       else if (k === '4') { e.preventDefault(); nav('processes'); }
       else if (k === '5') { e.preventDefault(); nav('faq'); }
-      else if (k === 'f') { 
-        e.preventDefault(); 
-        if (hasOwnAccount.value) nav('tool-follow');
-        else toast('Add an account first', 'warn');
-      }
-      else if (k === 'r') { 
-        e.preventDefault(); 
-        if (hasOwnAccount.value) nav('tool-reactions');
-        else toast('Add an account first', 'warn');
-      }
-      else if (k === 's') { 
-        e.preventDefault(); 
-        if (hasOwnAccount.value) nav('tool-share');
-        else toast('Add an account first', 'warn');
-      }
+      else if (k === 'f') { e.preventDefault(); if (hasAccounts.value) nav('tool-follow'); else toast('Add an account first', 'warn'); }
+      else if (k === 'r') { e.preventDefault(); if (hasAccounts.value) nav('tool-reactions'); else toast('Add an account first', 'warn'); }
+      else if (k === 's') { e.preventDefault(); if (hasAccounts.value) nav('tool-share'); else toast('Add an account first', 'warn'); }
       else if (k === 'tab') { e.preventDefault(); sidebarOpen.value = !sidebarOpen.value; }
     }
     
@@ -1726,9 +1635,7 @@ createApp({
       const token = localStorage.getItem('kdxfb_token');
       if (token) {
         const ok = await loadSession();
-        if (ok) {
-          startProcessPolling();
-        } else {
+        if (!ok) {
           page.value = 'auth';
           loading.session = false;
         }
@@ -1742,19 +1649,15 @@ createApp({
       }
     });
     
-    onUnmounted(() => {
-      stopProcessPolling();
-    });
-    
     return {
       page, sidebarOpen, showAddAccount, showDisconnect, period, authMode, tosExpanded, agreedToS, history, showPassword, isLoginValid, isRegisterValid,
-      user, fbAccounts, processes, analytics, stats,
+      user, fbAccounts, processes, analytics, stats, globalPoolCount,
       authForm, followForm, reactionForm, shareForm, newAcc,
       loading, cooldownMsg, toasts, uptime, lastAction, successRate, faqs,
-      authenticated, hasOwnAccount, poolPercent,
+      authenticated, hasAccounts,
       nav, goBack, statusBadge, procPercent, successPercent,
       handleLogin, handleRegister, logout,
-      addFbAccount, togglePool, removeAccount,
+      addFbAccount, removeAccount,
       submitFollow, submitReaction, submitShare,
       loadProcesses, pauseProc, resumeProc, stopProc,
       loadAnalytics
